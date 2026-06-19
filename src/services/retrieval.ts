@@ -1,5 +1,8 @@
+import OpenAI from 'openai';
 import { supabase } from '../db/client.js';
 import { logger } from '../lib/logger.js';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface RetrievalResult {
   documentTitle: string;
@@ -7,22 +10,32 @@ interface RetrievalResult {
   similarity: number;
 }
 
+async function embedQuery(query: string): Promise<number[]> {
+  const response = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: query,
+    encoding_format: 'float',
+  });
+  return response.data[0].embedding;
+}
+
 export async function retrieveContext(
   query: string,
   limit: number = 5,
 ): Promise<RetrievalResult[]> {
   try {
-    logger.info({ query }, 'Searching corpus');
+    logger.info({ queryLength: query.length }, 'Searching corpus');
+
+    const queryEmbedding = await embedQuery(query);
 
     const { data: results, error } = await supabase.rpc('search_corpus', {
-      query_text: query,
+      query_embedding: queryEmbedding,
       similarity_threshold: 0.5,
       match_limit: limit,
     });
 
     if (error) {
-      // Fallback: simple text search if RPC doesn't exist
-      logger.warn('RPC search_corpus not available, using fallback');
+      logger.error(error, 'search_corpus RPC failed');
       return [];
     }
 
