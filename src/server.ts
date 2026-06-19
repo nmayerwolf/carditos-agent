@@ -4,6 +4,7 @@ import { logger } from './lib/logger.js';
 import { AppError } from './lib/errors.js';
 import { healthHandler } from './routes/health.js';
 import { whatsappWebhookHandler, whatsappWebhookVerify } from './routes/webhooks.js';
+import { chatHandler } from './routes/chat.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,6 +20,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes
 app.get('/api/health', healthHandler);
+
+// Chat endpoint (for testing)
+app.post('/api/chat', chatHandler);
 
 // WhatsApp webhooks
 app.get('/webhooks/whatsapp', whatsappWebhookVerify);
