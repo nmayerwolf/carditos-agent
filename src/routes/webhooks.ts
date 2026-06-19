@@ -1,17 +1,18 @@
 import { Request, Response } from 'express';
 import { logger } from '../lib/logger.js';
+import {
+  getOrCreateUser,
+  getOrCreateConversation,
+  storeMessage,
+} from '../services/conversations.js';
+import { kapsoClient } from '../services/whatsapp.js';
+import type { WhatsAppWebhookPayload } from '../lib/types.js';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
   try {
-    const body = req.body;
+    const body = req.body as WhatsAppWebhookPayload;
 
-    // Verify webhook secret (TODO: implement signature verification)
-    // const signature = req.headers['x-hub-signature-256'];
-    // if (!verifySignature(signature, body)) {
-    //   throw new UnauthorizedError('Invalid webhook signature');
-    // }
-
-    logger.info({ body }, 'Received WhatsApp webhook');
+    logger.info({ changes: body.entry?.[0]?.changes?.length }, 'Received WhatsApp webhook');
 
     // Extract messages from webhook
     if (!body.entry?.[0]?.changes?.[0]?.value?.messages) {
@@ -19,9 +20,33 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
     }
 
     const messages = body.entry[0].changes[0].value.messages;
+
     for (const msg of messages) {
-      logger.info({ from: msg.from, type: msg.type }, 'Processing message');
-      // TODO: Route to chat service
+      try {
+        const phoneNumber = msg.from;
+        const messageContent = msg.text?.body || `[${msg.type}]`;
+
+        logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
+
+        // Get or create user
+        const user = await getOrCreateUser(phoneNumber);
+
+        // Get or create conversation
+        const conversation = await getOrCreateConversation(user.id);
+
+        // Store inbound message
+        await storeMessage(conversation.id, user.id, 'inbound', messageContent);
+
+        // Send echo response for now (TODO: integrate Claude)
+        const responseText = `Echo: ${messageContent}`;
+        await kapsoClient.sendMessage(phoneNumber, responseText);
+
+        // Store outbound message
+        await storeMessage(conversation.id, user.id, 'outbound', responseText);
+      } catch (msgErr) {
+        logger.error(msgErr, 'Error processing individual message');
+        // Continue processing other messages
+      }
     }
 
     res.json({ status: 'received' });
