@@ -37,7 +37,7 @@ export async function retrieveContext(
   }
 }
 
-export async function formatContext(results: RetrievalResult[]): Promise<string> {
+export function formatContext(results: RetrievalResult[]): string {
   if (results.length === 0) {
     return '';
   }

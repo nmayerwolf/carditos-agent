@@ -32,15 +32,20 @@ export async function getOrCreateUser(phoneNumber: string): Promise<User> {
   return newUser as User;
 }
 
+const CONVERSATION_TTL_HOURS = 24;
+
 export async function getOrCreateConversation(
   userId: string,
   whatsappConversationId?: string,
 ): Promise<Conversation> {
+  const ttlCutoff = new Date(Date.now() - CONVERSATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
+
   const { data: existingConv } = await supabase
     .from('conversations')
     .select('*')
     .eq('user_id', userId)
     .is('ended_at', null)
+    .gte('started_at', ttlCutoff)
     .order('started_at', { ascending: false })
     .limit(1)
     .single();
