@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Docs sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar docs canónicos presentes
+        run: |
+          for f in CLAUDE.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Falta archivo: $f"
+              exit 1
+            fi
+          done
+          echo "Docs OK."
+
+  node:
+    name: Lint · Format · Typecheck · Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detectar si hay package.json
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "has_pkg=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_pkg=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: steps.detect.outputs.has_pkg == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        if: steps.detect.outputs.has_pkg == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.detect.outputs.has_pkg == 'true'
+        run: npm run lint
+
+      - name: Format check
+        if: steps.detect.outputs.has_pkg == 'true'
+        run: npm run format:check
+
+      - name: Typecheck
+        if: steps.detect.outputs.has_pkg == 'true'
+        run: npm run typecheck
+
+      - name: Tests
+        if: steps.detect.outputs.has_pkg == 'true'
+        run: npm test --if-present

@@ -1,0 +1,45 @@
+# ─── Node / TypeScript ───
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# ─── Env / secrets ───
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ─── Logs ───
+logs/
+*.log
+npm-debug.log*
+
+# ─── Editor / OS ───
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# ─── Claude Code (personal) ───
+.claude/
+
+# ─── Testing / coverage ───
+coverage/
+.nyc_output/
+
+# ─── Contenido propietario Club San Andrés ───
+content/rugby-knowledge/*.pdf
+content/rugby-knowledge/*.pptx
+content/rugby-knowledge/*.docx
+content/rugby-knowledge/*.jpg
+content/rugby-knowledge/*.jpeg
+content/rugby-knowledge/*.png
+
+# ─── Misc ───
+.npm/
+.cache/
+.tmp/
+*.tgz
+notes.txt
