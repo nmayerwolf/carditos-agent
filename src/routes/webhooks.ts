@@ -6,6 +6,8 @@ import {
   storeMessage,
 } from '../services/conversations.js';
 import { kapsoClient } from '../services/whatsapp.js';
+import { processUserQuery, getConversationContext } from '../services/orchestrator.js';
+import { supabase } from '../db/client.js';
 import type { WhatsAppWebhookPayload } from '../lib/types.js';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
@@ -37,12 +39,25 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         // Store inbound message
         await storeMessage(conversation.id, user.id, 'inbound', messageContent);
 
-        // Send echo response for now (TODO: integrate Claude)
-        const responseText = `Echo: ${messageContent}`;
-        await kapsoClient.sendMessage(phoneNumber, responseText);
+        // Get recent messages for context
+        const { data: recentMessages } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversation.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-        // Store outbound message
-        await storeMessage(conversation.id, user.id, 'outbound', responseText);
+        const conversationHistory = getConversationContext(recentMessages || []).reverse();
+
+        // Process query with Claude
+        const { response } = await processUserQuery(messageContent, {
+          conversationId: conversation.id,
+          userId: user.id,
+          recentMessages: conversationHistory,
+        });
+
+        // Send response
+        await kapsoClient.sendMessage(phoneNumber, response);
       } catch (msgErr) {
         logger.error(msgErr, 'Error processing individual message');
         // Continue processing other messages
