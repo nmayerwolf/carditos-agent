@@ -17,7 +17,8 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "test": "vitest run --passWithNoTests",
-    "db:migrate": "tsx db/migrate.ts"
+    "db:migrate": "tsx db/migrate.ts",
+    "ingest": "tsx scripts/ingest-knowledge.ts"
   },
   "repository": {
     "type": "git",
