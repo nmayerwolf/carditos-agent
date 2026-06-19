@@ -30,7 +30,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response) => {
   if (err instanceof AppError) {
     logger.warn({ statusCode: err.statusCode, code: err.code }, err.message);
     return res.status(err.statusCode).json({

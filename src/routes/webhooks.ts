@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { logger } from '../lib/logger.js';
-import { ValidationError } from '../lib/errors.js';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
   try {
