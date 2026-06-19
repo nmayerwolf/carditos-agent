@@ -8,7 +8,11 @@ import {
 import { kapsoClient } from '../services/whatsapp.js';
 import { processUserQuery, getConversationContext } from '../services/orchestrator.js';
 import { supabase } from '../db/client.js';
+import { isRateLimited } from '../lib/rateLimiter.js';
 import type { WhatsAppWebhookPayload } from '../lib/types.js';
+
+const FALLBACK_ERROR_MSG =
+  'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
   try {
@@ -29,6 +33,11 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         const messageContent = msg.text?.body || `[${msg.type}]`;
 
         logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
+
+        if (isRateLimited(phoneNumber)) {
+          logger.warn({ from: phoneNumber }, 'Rate limit exceeded');
+          continue;
+        }
 
         // Get or create user
         const user = await getOrCreateUser(phoneNumber);
@@ -60,7 +69,11 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         await kapsoClient.sendMessage(phoneNumber, response);
       } catch (msgErr) {
         logger.error(msgErr, 'Error processing individual message');
-        // Continue processing other messages
+        try {
+          await kapsoClient.sendMessage(msg.from, FALLBACK_ERROR_MSG);
+        } catch {
+          // si el fallback también falla, no hay nada más que hacer
+        }
       }
     }
 
