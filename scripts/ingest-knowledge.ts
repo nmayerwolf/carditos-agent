@@ -2,156 +2,173 @@ import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import mammoth from 'mammoth';
 import OpenAI from 'openai';
 import { supabase } from '../src/db/client.js';
 import { logger } from '../src/lib/logger.js';
 
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const CHUNK_SIZE = 500; // words per chunk
-const OVERLAP = 50; // overlap words
+const CHUNK_SIZE = 500;
+const OVERLAP = 50;
+const CORPUS_DIR = path.join(__dirname, '../content/rugby-knowledge');
+
+type Category = 'reglamento' | 'ejercicios' | 'manejo_grupal' | 'modalidades';
 
 interface Document {
   title: string;
   source: string;
-  category: 'reglamento' | 'ejercicios' | 'manejo_grupal' | 'modalidades';
+  category: Category;
   content: string;
 }
 
-function chunkText(text: string, chunkSize: number = CHUNK_SIZE): string[] {
-  const words = text.split(/\s+/);
+function detectCategory(filename: string): Category {
+  const lower = filename.toLowerCase();
+  if (lower.includes('reglamento') || lower.includes('urba') || lower.includes('referato')) {
+    return 'reglamento';
+  }
+  if (lower.includes('modelo') || lower.includes('juego') || lower.includes('modalidad')) {
+    return 'modalidades';
+  }
+  if (lower.includes('drill') || lower.includes('ejercicio') || lower.includes('entrenamiento')) {
+    return 'ejercicios';
+  }
+  return 'manejo_grupal';
+}
+
+async function extractText(filePath: string): Promise<string> {
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === '.pdf') {
+    const buffer = fs.readFileSync(filePath);
+    const data = await pdfParse(buffer);
+    return data.text;
+  }
+
+  if (ext === '.docx') {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+  }
+
+  if (ext === '.txt' || ext === '.md') {
+    return fs.readFileSync(filePath, 'utf-8');
+  }
+
+  throw new Error(`Formato no soportado: ${ext}`);
+}
+
+function chunkText(text: string): string[] {
+  const words = text.split(/\s+/).filter((w) => w.length > 0);
   const chunks: string[] = [];
 
-  for (let i = 0; i < words.length; i += chunkSize - OVERLAP) {
-    const chunk = words.slice(i, i + chunkSize).join(' ');
-    if (chunk.trim().length > 0) {
-      chunks.push(chunk);
-    }
+  for (let i = 0; i < words.length; i += CHUNK_SIZE - OVERLAP) {
+    const chunk = words.slice(i, i + CHUNK_SIZE).join(' ');
+    if (chunk.trim().length > 0) chunks.push(chunk);
   }
 
   return chunks;
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  try {
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: text,
-      encoding_format: 'float',
-    });
+  const response = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: text,
+    encoding_format: 'float',
+  });
+  return response.data[0].embedding;
+}
 
-    return response.data[0].embedding;
-  } catch (err) {
-    logger.error(err, 'Failed to generate embedding');
-    throw err;
-  }
+async function alreadyIngested(title: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('corpus_documents')
+    .select('id')
+    .eq('title', title)
+    .limit(1)
+    .single();
+  return !!data;
 }
 
 async function ingestDocument(doc: Document): Promise<void> {
-  logger.info({ title: doc.title }, 'Ingesting document');
+  if (await alreadyIngested(doc.title)) {
+    logger.info({ title: doc.title }, 'Skipping — ya ingresado');
+    return;
+  }
 
-  // Insert document
+  logger.info({ title: doc.title, category: doc.category }, 'Ingresando documento');
+
   const { data: docData, error: docError } = await supabase
     .from('corpus_documents')
-    .insert([
-      {
-        title: doc.title,
-        source: doc.source,
-        content: doc.content,
-        category: doc.category,
-      },
-    ])
+    .insert([{ title: doc.title, source: doc.source, content: doc.content, category: doc.category }])
     .select()
     .single();
 
-  if (docError) {
-    logger.error(docError, 'Failed to insert document');
-    throw docError;
-  }
+  if (docError) throw docError;
 
-  const documentId = docData.id;
-
-  // Chunk and embed
   const chunks = chunkText(doc.content);
-  logger.info({ chunks: chunks.length }, 'Generated chunks');
+  logger.info({ title: doc.title, chunks: chunks.length }, 'Chunks generados');
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-
     try {
-      const embedding = await generateEmbedding(chunk);
-
-      const { error: embedError } = await supabase.from('corpus_embeddings').insert([
-        {
-          document_id: documentId,
-          chunk_text: chunk,
-          chunk_index: i,
-          embedding,
-        },
+      const embedding = await generateEmbedding(chunks[i]);
+      const { error } = await supabase.from('corpus_embeddings').insert([
+        { document_id: docData.id, chunk_text: chunks[i], chunk_index: i, embedding },
       ]);
-
-      if (embedError) {
-        logger.error(embedError, 'Failed to insert embedding');
-        throw embedError;
-      }
-
-      logger.info({ chunk: i + 1, total: chunks.length }, 'Embedded chunk');
+      if (error) throw error;
+      logger.info({ chunk: i + 1, total: chunks.length }, 'Chunk embebido');
     } catch (err) {
-      logger.error(err, 'Error processing chunk');
-      // Continue with next chunk
+      logger.error({ err, chunk: i }, 'Error embebiendo chunk — continuando');
     }
   }
 
-  logger.info({ title: doc.title, chunks: chunks.length }, 'Document ingested');
+  logger.info({ title: doc.title, chunks: chunks.length }, '✓ Documento ingresado');
 }
 
 async function main() {
-  try {
-    // Example documents (replace with actual corpus)
-    const exampleDocs: Document[] = [
-      {
-        title: 'Reglamento UAR - Rugby 7s Infantil',
-        source: 'reglamento_uar',
-        category: 'reglamento',
-        content: `
-          El rugby 7s es una variante del rugby con 7 jugadores por equipo.
-          El terreno de juego es similar al rugby 15s pero más pequeño.
-          Los tries valen 5 puntos, las conversiones 2 puntos.
-          El juego es más rápido y dinámico que el rugby 15s.
-          Las reglas de fuera de juego y línea de ventaja se aplican normalmente.
-          Los cambios ilimitados están permitidos en rugby 7s.
-        `,
-      },
-      {
-        title: 'Drill: Pase Rápido en U10',
-        source: 'drills_club',
-        category: 'ejercicios',
-        content: `
-          Objetivo: mejorar la velocidad y precisión del pase.
-          Recursos: 4 conos, 1 balón por pareja.
-          Formación: dos líneas de 3 metros de distancia.
-          Ejecución: los jugadores pasan el balón alternadamente.
-          Variante 1: aumentar la distancia a 5 metros.
-          Variante 2: agregar movimiento lateral.
-          Duración: 10 minutos.
-        `,
-      },
-    ];
-
-    for (const doc of exampleDocs) {
-      await ingestDocument(doc);
-    }
-
-    logger.info('✓ All documents ingested');
-  } catch (err) {
-    logger.error(err, 'Ingest failed');
+  if (!fs.existsSync(CORPUS_DIR)) {
+    logger.error({ dir: CORPUS_DIR }, 'Directorio de corpus no encontrado');
     process.exit(1);
   }
+
+  const files = fs.readdirSync(CORPUS_DIR).filter((f) => {
+    const ext = path.extname(f).toLowerCase();
+    return ['.pdf', '.docx', '.txt', '.md'].includes(ext);
+  });
+
+  if (files.length === 0) {
+    logger.warn('No se encontraron archivos en el corpus');
+    process.exit(0);
+  }
+
+  logger.info({ files: files.length }, 'Archivos encontrados');
+
+  for (const file of files) {
+    const filePath = path.join(CORPUS_DIR, file);
+    const title = path.basename(file, path.extname(file));
+    const category = detectCategory(file);
+
+    try {
+      const content = await extractText(filePath);
+      if (!content.trim()) {
+        logger.warn({ file }, 'Archivo vacío, saltando');
+        continue;
+      }
+      await ingestDocument({ title, source: file, category, content });
+    } catch (err) {
+      logger.error({ err, file }, 'Error procesando archivo — continuando');
+    }
+  }
+
+  logger.info('✓ Ingest completo');
 }
 
-main();
+main().catch((err) => {
+  logger.error(err, 'Ingest failed');
+  process.exit(1);
+});
