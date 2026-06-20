@@ -11,8 +11,7 @@ import { supabase } from '../db/client.js';
 import { isRateLimited } from '../lib/rateLimiter.js';
 import type { WhatsAppWebhookPayload } from '../lib/types.js';
 
-const FALLBACK_ERROR_MSG =
-  'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
+const FALLBACK_ERROR_MSG = 'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
   try {
