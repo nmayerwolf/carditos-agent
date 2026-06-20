@@ -2,13 +2,10 @@ import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
 import { supabase } from '../src/db/client.js';
 import { logger } from '../src/lib/logger.js';
-
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,8 +33,10 @@ async function extractText(filePath: string): Promise<string> {
 
   if (ext === '.pdf') {
     const buffer = fs.readFileSync(filePath);
-    const data = await pdfParse(buffer);
-    return data.text;
+    const parser = new PDFParse({ data: buffer });
+    await parser.load();
+    const result = await parser.getText();
+    return result.text;
   }
 
   if (ext === '.docx') {
