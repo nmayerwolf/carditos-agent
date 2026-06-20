@@ -1,6 +1,7 @@
 import { logger } from '../lib/logger.js';
 import { chat } from './claude.js';
 import { storeMessage } from './conversations.js';
+import { isLikelyOutOfScope, getOutOfScopeResponse } from '../lib/scope.js';
 import type { Message as DbMessage } from '../lib/types.js';
 
 export interface ConversationContext {
@@ -15,6 +16,17 @@ export async function processUserQuery(
 ): Promise<{ response: string; latencyMs: number }> {
   try {
     const startTime = Date.now();
+
+    // Check if query is out of scope
+    if (isLikelyOutOfScope(query)) {
+      const response = getOutOfScopeResponse();
+      const latencyMs = Date.now() - startTime;
+
+      // Store response
+      await storeMessage(context.conversationId, context.userId, 'outbound', response);
+
+      return { response, latencyMs };
+    }
 
     // Get Claude response with RAG
     const response = await chat(query, {
