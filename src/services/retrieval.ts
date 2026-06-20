@@ -1,48 +1,28 @@
-import OpenAI from 'openai';
 import { supabase } from '../db/client.js';
 import { logger } from '../lib/logger.js';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface RetrievalResult {
   documentTitle: string;
   chunkText: string;
-  similarity: number;
 }
 
-async function embedQuery(query: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: query,
-    encoding_format: 'float',
-  });
-  return response.data[0].embedding;
-}
-
-export async function retrieveContext(
-  query: string,
-  limit: number = 5,
-): Promise<RetrievalResult[]> {
+export async function retrieveContext(_query: string): Promise<RetrievalResult[]> {
   try {
-    logger.info({ queryLength: query.length }, 'Searching corpus');
+    logger.info('Loading corpus from DB');
 
-    const queryEmbedding = await embedQuery(query);
-
-    const { data: results, error } = await supabase.rpc('search_corpus', {
-      query_embedding: queryEmbedding,
-      similarity_threshold: 0.5,
-      match_limit: limit,
-    });
+    const { data, error } = await supabase
+      .from('corpus_documents')
+      .select('title, content')
+      .order('ingested_at', { ascending: true });
 
     if (error) {
-      logger.error(error, 'search_corpus RPC failed');
+      logger.error(error, 'Failed to load corpus');
       return [];
     }
 
-    return (results || []).map((result: Record<string, unknown>) => ({
-      documentTitle: result.document_title as string,
-      chunkText: result.chunk_text as string,
-      similarity: result.similarity as number,
+    return (data || []).map((doc) => ({
+      documentTitle: doc.title as string,
+      chunkText: doc.content as string,
     }));
   } catch (err) {
     logger.error(err, 'Retrieval failed');
