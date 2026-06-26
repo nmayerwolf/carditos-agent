@@ -24,9 +24,7 @@ function extractMessageContent(msg: NonNullable<KapsoWebhookPayload['message']>)
   }
   if (msg.type === 'audio') {
     const transcription = msg.kapso?.content?.trim();
-    return transcription
-      ? `[El usuario envió un audio. Transcripción]\n${transcription}`
-      : null;
+    return transcription ? `[El usuario envió un audio. Transcripción]\n${transcription}` : null;
   }
   return `[${msg.type}]`;
 }
@@ -53,10 +51,7 @@ async function notifySuperadmins(
   }
 }
 
-async function handleSuperadminCommand(
-  command: string,
-  superadminPhone: string,
-): Promise<void> {
+async function handleSuperadminCommand(command: string, superadminPhone: string): Promise<void> {
   const trimmed = command.trim().toLowerCase();
   const parts = trimmed.split(/\s+/);
   const action = parts[0];
@@ -69,7 +64,10 @@ async function handleSuperadminCommand(
       return;
     }
     const list = pending
-      .map((u) => `• ${u.name || '(sin nombre)'} — ${(u as unknown as Record<string, string>).phone_number} [${u.status}]`)
+      .map(
+        (u) =>
+          `• ${u.name || '(sin nombre)'} — ${(u as unknown as Record<string, string>).phone_number} [${u.status}]`,
+      )
       .join('\n');
     await kapsoClient.sendMessage(superadminPhone, `Solicitudes pendientes:\n${list}`);
     return;
@@ -100,14 +98,14 @@ async function handleSuperadminCommand(
       await updateUser(user.id, { status: 'approved' });
       const conversation = await getOrCreateConversation(user.id, undefined);
       await storeMessage(conversation.id, user.id, 'outbound', WELCOME_MSG);
-      await kapsoClient.sendMessage((user as unknown as Record<string, string>).phone_number, WELCOME_MSG);
+      await kapsoClient.sendMessage(
+        (user as unknown as Record<string, string>).phone_number,
+        WELCOME_MSG,
+      );
       await kapsoClient.sendMessage(superadminPhone, `✓ ${displayName} aprobado.`);
     } else {
       await updateUser(user.id, { status: 'rejected' });
-      await kapsoClient.sendMessage(
-        superadminPhone,
-        `✗ ${displayName} rechazado.`,
-      );
+      await kapsoClient.sendMessage(superadminPhone, `✗ ${displayName} rechazado.`);
     }
     return;
   }

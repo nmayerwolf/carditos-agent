@@ -1,10 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/client.js';
-import {
-  updateUser,
-  getOrCreateConversation,
-  storeMessage,
-} from '../services/conversations.js';
+import { updateUser, getOrCreateConversation, storeMessage } from '../services/conversations.js';
 import { kapsoClient } from '../services/whatsapp.js';
 import { logger } from '../lib/logger.js';
 import { WELCOME_MSG } from '../lib/messages.js';
@@ -390,11 +386,7 @@ export async function adminApproveHandler(req: Request, res: Response) {
   if (!checkToken(req, res)) return;
   const id = req.params.id as string;
 
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', id)
-    .single();
+  const { data: user, error } = await supabase.from('users').select('*').eq('id', id).single();
 
   if (error || !user) return res.status(404).json({ error: 'User not found' });
 
