@@ -28,35 +28,25 @@ export interface Message {
   createdAt: Date;
 }
 
-export interface WhatsAppWebhookPayload {
-  entry: Array<{
+export interface KapsoWebhookPayload {
+  message?: {
     id: string;
-    changes: Array<{
-      field: string;
-      value: {
-        messaging_product: string;
-        metadata: {
-          phone_number_id: string;
-          display_phone_number: string;
-        };
-        messages?: Array<{
-          from: string;
-          id: string;
-          timestamp: string;
-          type: 'text' | 'image' | 'audio' | 'document';
-          text?: { body: string };
-          image?: { link: string };
-          audio?: { link: string };
-          document?: { link: string };
-        }>;
-        statuses?: Array<{
-          id: string;
-          status: 'delivered' | 'read' | 'failed';
-          timestamp: string;
-        }>;
-      };
-    }>;
-  }>;
+    from: string;
+    type: 'text' | 'image' | 'audio' | 'document' | 'video';
+    text?: { body: string };
+    kapso?: {
+      direction: 'inbound' | 'outbound';
+      content: string;
+      has_media: boolean;
+    };
+    timestamp: string;
+  };
+  conversation?: {
+    id: string;
+    phone_number: string;
+    contact_name?: string;
+  };
+  phone_number_id?: string;
 }
 
 export interface ChatRequest {

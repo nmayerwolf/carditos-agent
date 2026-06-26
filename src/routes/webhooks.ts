@@ -9,77 +9,63 @@ import { kapsoClient } from '../services/whatsapp.js';
 import { processUserQuery, getConversationContext } from '../services/orchestrator.js';
 import { supabase } from '../db/client.js';
 import { isRateLimited } from '../lib/rateLimiter.js';
-import type { WhatsAppWebhookPayload } from '../lib/types.js';
+import type { KapsoWebhookPayload } from '../lib/types.js';
 
 const FALLBACK_ERROR_MSG = 'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
 
 export async function whatsappWebhookHandler(req: Request, res: Response) {
+  // Respond immediately — Kapso requires fast 200
+  res.json({ status: 'received' });
+
   try {
-    const body = req.body as WhatsAppWebhookPayload;
+    const body = req.body as KapsoWebhookPayload;
 
-    logger.info({ changes: body.entry?.[0]?.changes?.length }, 'Received WhatsApp webhook');
+    // Solo procesar mensajes inbound con texto
+    const msg = body.message;
+    if (!msg || msg.kapso?.direction !== 'inbound') return;
 
-    // Extract messages from webhook
-    if (!body.entry?.[0]?.changes?.[0]?.value?.messages) {
-      return res.json({ status: 'received' });
+    const phoneNumber = msg.from;
+    const messageContent = msg.type === 'text' && msg.text?.body ? msg.text.body : `[${msg.type}]`;
+
+    logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
+
+    if (isRateLimited(phoneNumber)) {
+      logger.warn({ from: phoneNumber }, 'Rate limit exceeded');
+      return;
     }
 
-    const messages = body.entry[0].changes[0].value.messages;
+    try {
+      const user = await getOrCreateUser(phoneNumber);
+      const conversation = await getOrCreateConversation(user.id, body.conversation?.id);
 
-    for (const msg of messages) {
+      await storeMessage(conversation.id, user.id, 'inbound', messageContent);
+
+      const { data: recentMessages } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversation.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const conversationHistory = getConversationContext(recentMessages || []).reverse();
+
+      const { response } = await processUserQuery(messageContent, {
+        conversationId: conversation.id,
+        userId: user.id,
+        recentMessages: conversationHistory,
+      });
+
+      await kapsoClient.sendMessage(phoneNumber, response);
+    } catch (msgErr) {
+      logger.error(msgErr, 'Error processing message');
       try {
-        const phoneNumber = msg.from;
-        const messageContent = msg.text?.body || `[${msg.type}]`;
-
-        logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
-
-        if (isRateLimited(phoneNumber)) {
-          logger.warn({ from: phoneNumber }, 'Rate limit exceeded');
-          continue;
-        }
-
-        // Get or create user
-        const user = await getOrCreateUser(phoneNumber);
-
-        // Get or create conversation
-        const conversation = await getOrCreateConversation(user.id);
-
-        // Store inbound message
-        await storeMessage(conversation.id, user.id, 'inbound', messageContent);
-
-        // Get recent messages for context
-        const { data: recentMessages } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversation.id)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        const conversationHistory = getConversationContext(recentMessages || []).reverse();
-
-        // Process query with Claude
-        const { response } = await processUserQuery(messageContent, {
-          conversationId: conversation.id,
-          userId: user.id,
-          recentMessages: conversationHistory,
-        });
-
-        // Send response
-        await kapsoClient.sendMessage(phoneNumber, response);
-      } catch (msgErr) {
-        logger.error(msgErr, 'Error processing individual message');
-        try {
-          await kapsoClient.sendMessage(msg.from, FALLBACK_ERROR_MSG);
-        } catch {
-          // si el fallback también falla, no hay nada más que hacer
-        }
+        await kapsoClient.sendMessage(phoneNumber, FALLBACK_ERROR_MSG);
+      } catch {
+        // si el fallback también falla, no hay nada más que hacer
       }
     }
-
-    res.json({ status: 'received' });
   } catch (err) {
     logger.error(err, 'Webhook handler error');
-    res.status(500).json({ error: 'Webhook processing failed' });
   }
 }
 
