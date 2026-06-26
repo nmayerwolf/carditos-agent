@@ -5,6 +5,12 @@ import { AppError } from './lib/errors.js';
 import { healthHandler } from './routes/health.js';
 import { whatsappWebhookHandler, whatsappWebhookVerify } from './routes/webhooks.js';
 import { chatHandler } from './routes/chat.js';
+import {
+  adminPanelHandler,
+  adminListUsersHandler,
+  adminApproveHandler,
+  adminRejectHandler,
+} from './routes/admin.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -27,6 +33,12 @@ app.post('/api/chat', chatHandler);
 // WhatsApp webhooks
 app.get('/webhooks/whatsapp', whatsappWebhookVerify);
 app.post('/webhooks/whatsapp', whatsappWebhookHandler);
+
+// Admin panel
+app.get('/admin', adminPanelHandler);
+app.get('/admin/users', adminListUsersHandler);
+app.post('/admin/users/:id/approve', adminApproveHandler);
+app.post('/admin/users/:id/reject', adminRejectHandler);
 
 // 404
 app.use((req: Request, res: Response) => {

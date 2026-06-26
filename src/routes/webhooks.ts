@@ -14,24 +14,9 @@ import { processUserQuery, getConversationContext } from '../services/orchestrat
 import { supabase } from '../db/client.js';
 import { isRateLimited } from '../lib/rateLimiter.js';
 import type { KapsoWebhookPayload } from '../lib/types.js';
+import { WELCOME_MSG, ASK_NAME_MSG, PENDING_MSG, STILL_PENDING_MSG } from '../lib/messages.js';
 
 const FALLBACK_ERROR_MSG = 'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
-
-const ASK_NAME_MSG =
-  '¡Hola! Soy Carditos, el asistente de rugby del Club San Andrés. Para empezar, ¿cuál es tu nombre?';
-
-const PENDING_MSG =
-  'Gracias. Tu solicitud está siendo revisada por el club. Te avisamos cuando esté aprobada.';
-
-const STILL_PENDING_MSG = 'Tu solicitud sigue en revisión. Te avisamos cuando esté lista.';
-
-const WELCOME_MSG =
-  'Soy Carditos, el asistente de rugby del club. Te puedo ayudar con cuatro cosas concretas:\n\n' +
-  '*Reglamento y modalidades de juego* por categoría — formatos, reglas específicas de infantiles y juveniles, qué se puede y qué no según la edad.\n\n' +
-  '*Ejercicios y drills* — calentamiento, técnica, planificación de sesión, juegos para entrenar tackle, ruck, pase, lo que necesites.\n\n' +
-  '*Manejo del grupo* — motivación, conflictos entre chicos, cómo hablar con los padres, dinámica del vestuario.\n\n' +
-  '*Decisiones de entrenamiento* — si tenés una situación concreta del partido o del entreno y querés pensar cómo encararlo, acá estamos.\n\n' +
-  '¿Qué categoría entrenás?';
 
 function extractMessageContent(msg: NonNullable<KapsoWebhookPayload['message']>): string | null {
   if (msg.type === 'text' && msg.text?.body) {
