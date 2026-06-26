@@ -16,7 +16,7 @@ class KapsoClient {
     this.client = axios.create({
       baseURL: KAPSO_API_URL,
       headers: {
-        Authorization: `Bearer ${KAPSO_API_KEY}`,
+        'X-API-Key': KAPSO_API_KEY,
         'Content-Type': 'application/json',
       },
     });
