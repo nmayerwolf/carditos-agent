@@ -29,6 +29,8 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
 
     logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
 
+    kapsoClient.markAsRead(msg.id).catch(() => {});
+
     if (isRateLimited(phoneNumber)) {
       logger.warn({ from: phoneNumber }, 'Rate limit exceeded');
       return;

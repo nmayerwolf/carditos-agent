@@ -22,6 +22,18 @@ class KapsoClient {
     });
   }
 
+  async markAsRead(messageId: string): Promise<void> {
+    try {
+      await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+      });
+    } catch (err) {
+      logger.warn(err, 'Failed to mark message as read');
+    }
+  }
+
   async sendMessage(toPhoneNumber: string, message: string): Promise<string> {
     try {
       const response = await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
