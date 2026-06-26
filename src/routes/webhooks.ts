@@ -13,6 +13,14 @@ import type { KapsoWebhookPayload } from '../lib/types.js';
 
 const FALLBACK_ERROR_MSG = 'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
 
+const WELCOME_MSG =
+  'Soy Carditos, el asistente de rugby del club. Te puedo ayudar con cuatro cosas concretas:\n\n' +
+  '*Reglamento y modalidades de juego* por categoría — formatos, reglas específicas de infantiles y juveniles, qué se puede y qué no según la edad.\n\n' +
+  '*Ejercicios y drills* — calentamiento, técnica, planificación de sesión, juegos para entrenar tackle, ruck, pase, lo que necesites.\n\n' +
+  '*Manejo del grupo* — motivación, conflictos entre chicos, cómo hablar con los padres, dinámica del vestuario.\n\n' +
+  '*Decisiones de entrenamiento* — si tenés una situación concreta del partido o del entreno y querés pensar cómo encararlo, acá estamos.\n\n' +
+  '¿Qué categoría entrenás?';
+
 export async function whatsappWebhookHandler(req: Request, res: Response) {
   // Respond immediately — Kapso requires fast 200
   res.json({ status: 'received' });
@@ -49,7 +57,14 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         .order('created_at', { ascending: false })
         .limit(20);
 
+      const hasOutbound = (recentMessages || []).some((m) => m.direction === 'outbound');
       const conversationHistory = getConversationContext(recentMessages || []).reverse();
+
+      if (!hasOutbound) {
+        await storeMessage(conversation.id, user.id, 'outbound', WELCOME_MSG);
+        await kapsoClient.sendMessage(phoneNumber, WELCOME_MSG);
+        return;
+      }
 
       const { response } = await processUserQuery(messageContent, {
         conversationId: conversation.id,

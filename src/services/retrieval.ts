@@ -6,7 +6,16 @@ interface RetrievalResult {
   chunkText: string;
 }
 
+const CACHE_TTL_MS = 30 * 60 * 1000;
+let corpusCache: RetrievalResult[] | null = null;
+let cacheLoadedAt = 0;
+
 export async function retrieveContext(_query: string): Promise<RetrievalResult[]> {
+  const now = Date.now();
+  if (corpusCache && now - cacheLoadedAt < CACHE_TTL_MS) {
+    return corpusCache;
+  }
+
   try {
     logger.info('Loading corpus from DB');
 
@@ -17,16 +26,18 @@ export async function retrieveContext(_query: string): Promise<RetrievalResult[]
 
     if (error) {
       logger.error(error, 'Failed to load corpus');
-      return [];
+      return corpusCache || [];
     }
 
-    return (data || []).map((doc) => ({
+    corpusCache = (data || []).map((doc) => ({
       documentTitle: doc.title as string,
       chunkText: doc.content as string,
     }));
+    cacheLoadedAt = now;
+    return corpusCache;
   } catch (err) {
     logger.error(err, 'Retrieval failed');
-    return [];
+    return corpusCache || [];
   }
 }
 
