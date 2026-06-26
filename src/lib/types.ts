@@ -34,6 +34,7 @@ export interface KapsoWebhookPayload {
     from: string;
     type: 'text' | 'image' | 'audio' | 'document' | 'video';
     text?: { body: string };
+    audio?: { id: string; mime_type?: string };
     kapso?: {
       direction: 'inbound' | 'outbound';
       content: string;

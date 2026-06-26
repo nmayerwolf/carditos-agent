@@ -33,7 +33,25 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
     if (!msg || msg.kapso?.direction !== 'inbound') return;
 
     const phoneNumber = msg.from;
-    const messageContent = msg.type === 'text' && msg.text?.body ? msg.text.body : `[${msg.type}]`;
+
+    let messageContent: string;
+    if (msg.type === 'text' && msg.text?.body) {
+      messageContent = msg.text.body;
+    } else if (msg.type === 'audio') {
+      const transcription = msg.kapso?.content?.trim();
+      if (transcription) {
+        messageContent = `[El usuario envió un audio. Transcripción]\n${transcription}`;
+      } else {
+        logger.info({ from: phoneNumber }, 'Audio without transcription — skipping');
+        await kapsoClient.sendMessage(
+          phoneNumber,
+          'Recibí tu audio pero todavía no puedo procesarlos. Mandame un mensaje de texto y te ayudo.',
+        );
+        return;
+      }
+    } else {
+      messageContent = `[${msg.type}]`;
+    }
 
     logger.info({ from: phoneNumber, type: msg.type }, 'Processing inbound message');
 
