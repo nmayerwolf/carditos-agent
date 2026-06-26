@@ -2,9 +2,17 @@ export interface User {
   id: string;
   phoneNumber: string;
   name?: string;
+  status: 'pending_name' | 'pending_approval' | 'approved' | 'rejected';
   clubRole: 'coach_infantil' | 'coach_juvenil' | 'admin';
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Superadmin {
+  id: string;
+  phoneNumber: string;
+  name: string;
+  createdAt: Date;
 }
 
 export interface Conversation {

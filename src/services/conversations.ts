@@ -2,6 +2,46 @@ import { supabase } from '../db/client.js';
 import { logger } from '../lib/logger.js';
 import type { Conversation, User, Message } from '../lib/types.js';
 
+export async function getUserByPhone(phoneNumber: string): Promise<User | null> {
+  const normalized = phoneNumber.replace(/\D/g, '');
+  const { data } = await supabase
+    .from('users')
+    .select('*')
+    .like('phone_number', `%${normalized.slice(-10)}%`)
+    .limit(1)
+    .maybeSingle();
+  return data ? (data as User) : null;
+}
+
+export async function updateUser(
+  userId: string,
+  updates: Partial<Pick<User, 'name' | 'status'>>,
+): Promise<void> {
+  const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+
+  const { error } = await supabase.from('users').update(dbUpdates).eq('id', userId);
+  if (error) {
+    logger.error(error, 'Failed to update user');
+    throw error;
+  }
+}
+
+export async function getSuperadminPhones(): Promise<string[]> {
+  const { data } = await supabase.from('superadmins').select('phone_number');
+  return (data || []).map((s) => s.phone_number as string);
+}
+
+export async function getPendingUsers(): Promise<User[]> {
+  const { data } = await supabase
+    .from('users')
+    .select('*')
+    .in('status', ['pending_name', 'pending_approval'])
+    .order('created_at', { ascending: true });
+  return (data || []) as User[];
+}
+
 export async function getOrCreateUser(phoneNumber: string): Promise<User> {
   const { data: existingUser } = await supabase
     .from('users')
