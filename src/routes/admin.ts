@@ -32,11 +32,17 @@ const PANEL_HTML = `<!DOCTYPE html>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; color: #1a1a2e; }
-    header { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 20px; font-weight: 700; }
-    main { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
+    header { background: #1a1a2e; color: white; padding: 0 32px; display: flex; align-items: center; gap: 20px; }
+    header .logo { display: flex; align-items: center; gap: 10px; padding: 16px 0; }
+    header h1 { font-size: 18px; font-weight: 700; }
+    nav { display: flex; gap: 4px; margin-left: 16px; }
+    nav button { background: none; border: none; color: rgba(255,255,255,.6); padding: 20px 16px; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all .15s; }
+    nav button.active, nav button:hover { color: white; border-bottom-color: white; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    main { max-width: 1040px; margin: 32px auto; padding: 0 20px; }
     .section { margin-bottom: 40px; }
-    .section-title { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+    .section-title { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
     .card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
     th { background: #f8f9fa; padding: 11px 16px; text-align: left; font-size: 12px; color: #888; font-weight: 600; border-bottom: 1px solid #eee; }
@@ -55,6 +61,24 @@ const PANEL_HTML = `<!DOCTYPE html>
     .btn-edit    { background: #6c757d; color: white; }
     .empty { padding: 32px; text-align: center; color: #bbb; font-size: 14px; }
 
+    /* Messages tab */
+    .chat-layout { display: flex; height: calc(100vh - 180px); min-height: 400px; background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+    .user-list { width: 280px; border-right: 1px solid #eee; overflow-y: auto; flex-shrink: 0; }
+    .user-item { padding: 14px 16px; border-bottom: 1px solid #f4f4f4; cursor: pointer; transition: background .12s; }
+    .user-item:hover { background: #f8f9fa; }
+    .user-item.selected { background: #eef2ff; }
+    .user-item .ui-name { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+    .user-item .ui-preview { font-size: 12px; color: #888; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-item .ui-time { font-size: 11px; color: #bbb; float: right; margin-top: 2px; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header { padding: 14px 20px; border-bottom: 1px solid #eee; font-weight: 600; font-size: 15px; background: #fafafa; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .msg { max-width: 72%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+    .msg.inbound  { align-self: flex-start; background: #f0f2f5; color: #1a1a2e; border-bottom-left-radius: 4px; }
+    .msg.outbound { align-self: flex-end; background: #1a1a2e; color: white; border-bottom-right-radius: 4px; }
+    .msg-time { font-size: 11px; opacity: .6; margin-top: 4px; }
+    .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 14px; }
+
     /* Modal */
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
     .overlay.open { display: flex; }
@@ -72,19 +96,41 @@ const PANEL_HTML = `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <span style="font-size:24px">🏉</span>
-  <h1>Carditos Admin</h1>
+  <div class="logo"><span style="font-size:22px">🏉</span><h1>Carditos Admin</h1></div>
+  <nav>
+    <button class="active" onclick="showTab('usuarios')">Usuarios</button>
+    <button onclick="showTab('mensajes')">Mensajes</button>
+  </nav>
 </header>
-<main>
-  <div class="section">
-    <div class="section-title">Solicitudes pendientes</div>
-    <div class="card" id="pending-card"><div class="empty">Cargando...</div></div>
-  </div>
-  <div class="section">
-    <div class="section-title">Todos los usuarios</div>
-    <div class="card" id="all-card"><div class="empty">Cargando...</div></div>
-  </div>
-</main>
+
+<!-- TAB: Usuarios -->
+<div id="tab-usuarios" class="tab active">
+  <main>
+    <div class="section">
+      <div class="section-title">Solicitudes pendientes</div>
+      <div class="card" id="pending-card"><div class="empty">Cargando...</div></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Todos los usuarios</div>
+      <div class="card" id="all-card"><div class="empty">Cargando...</div></div>
+    </div>
+  </main>
+</div>
+
+<!-- TAB: Mensajes -->
+<div id="tab-mensajes" class="tab">
+  <main>
+    <div class="chat-layout card">
+      <div class="user-list" id="conv-list"><div class="empty">Cargando...</div></div>
+      <div class="chat-area">
+        <div class="chat-header" id="chat-header">Seleccioná un usuario</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-empty">← Elegí una conversación</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
 
 <!-- Modal edición -->
 <div class="overlay" id="overlay">
@@ -114,6 +160,7 @@ const PANEL_HTML = `<!DOCTYPE html>
 <script>
   const TOKEN = new URLSearchParams(location.search).get('token') || '';
   let allUsers = [];
+  let allMessages = [];
 
   const STATUS_LABELS = {
     pending_name: 'Sin nombre',
@@ -122,8 +169,27 @@ const PANEL_HTML = `<!DOCTYPE html>
     rejected: 'Rechazado'
   };
 
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'mensajes') loadMessages();
+  }
+
   function fmt(d) {
     return new Date(d).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+
+  function fmtTime(d) {
+    return new Date(d).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function fmtPreview(d) {
+    const now = new Date(), dt = new Date(d);
+    return now.toDateString() === dt.toDateString()
+      ? fmtTime(d)
+      : fmt(d);
   }
 
   function toast(msg) {
@@ -140,6 +206,8 @@ const PANEL_HTML = `<!DOCTYPE html>
     return res.json();
   }
 
+  // ── Usuarios ──────────────────────────────────────────────
+
   function openEdit(id) {
     const u = allUsers.find(u => u.id === id);
     if (!u) return;
@@ -150,9 +218,7 @@ const PANEL_HTML = `<!DOCTYPE html>
     document.getElementById('overlay').classList.add('open');
   }
 
-  function closeModal() {
-    document.getElementById('overlay').classList.remove('open');
-  }
+  function closeModal() { document.getElementById('overlay').classList.remove('open'); }
 
   async function saveEdit() {
     const id = document.getElementById('edit-id').value;
@@ -163,62 +229,120 @@ const PANEL_HTML = `<!DOCTYPE html>
     });
     closeModal();
     toast('Usuario actualizado ✓');
-    load();
+    loadUsers();
   }
 
   async function approve(id) {
     await api('/admin/users/' + id + '/approve', 'POST');
     toast('Usuario aprobado ✓');
-    load();
+    loadUsers();
   }
 
   async function reject(id) {
     await api('/admin/users/' + id + '/reject', 'POST');
     toast('Usuario rechazado');
-    load();
+    loadUsers();
   }
 
   function buildRow(u, showActions) {
-    const actions = showActions
+    const qa = showActions
       ? '<button class="btn btn-approve" onclick="approve(\\'' + u.id + '\\')">Aprobar</button>' +
-        '<button class="btn btn-reject" onclick="reject(\\'' + u.id + '\\')">Rechazar</button>'
+        '<button class="btn btn-reject"  onclick="reject(\\'' + u.id + '\\')">Rechazar</button>'
       : '';
     return '<tr>' +
       '<td>' + (u.name || '<em style="color:#bbb">—</em>') + '</td>' +
       '<td>' + u.phone_number + '</td>' +
       '<td><span class="badge ' + u.status + '">' + STATUS_LABELS[u.status] + '</span></td>' +
       '<td>' + fmt(u.created_at) + '</td>' +
-      '<td><div class="actions">' + actions +
+      '<td><div class="actions">' + qa +
         '<button class="btn btn-edit" onclick="openEdit(\\'' + u.id + '\\')">Editar</button>' +
       '</div></td></tr>';
   }
 
-  function render() {
+  function renderUsers() {
     const pending = allUsers.filter(u => u.status === 'pending_name' || u.status === 'pending_approval');
-    const rest    = allUsers.filter(u => u.status === 'approved' || u.status === 'rejected');
+    const rest    = allUsers.filter(u => u.status === 'approved'     || u.status === 'rejected');
     const THEAD   = '<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>';
 
-    const pc = document.getElementById('pending-card');
-    pc.innerHTML = pending.length
+    document.getElementById('pending-card').innerHTML = pending.length
       ? THEAD + pending.map(u => buildRow(u, true)).join('') + '</tbody></table>'
       : '<div class="empty">No hay solicitudes pendientes</div>';
 
-    const ac = document.getElementById('all-card');
-    ac.innerHTML = rest.length
+    document.getElementById('all-card').innerHTML = rest.length
       ? THEAD + rest.map(u => buildRow(u, false)).join('') + '</tbody></table>'
       : '<div class="empty">No hay usuarios</div>';
   }
 
-  async function load() {
+  async function loadUsers() {
     allUsers = await api('/admin/users');
-    render();
+    renderUsers();
   }
 
+  // ── Mensajes ──────────────────────────────────────────────
+
+  function groupByUser(messages) {
+    const map = {};
+    for (const m of messages) {
+      if (!map[m.user_id]) map[m.user_id] = { userId: m.user_id, name: m.user_name, phone: m.user_phone, messages: [], lastAt: m.created_at };
+      map[m.user_id].messages.push(m);
+      if (m.created_at > map[m.user_id].lastAt) map[m.user_id].lastAt = m.created_at;
+    }
+    return Object.values(map).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+  }
+
+  function renderConvList(groups, selectedId) {
+    const el = document.getElementById('conv-list');
+    if (!groups.length) { el.innerHTML = '<div class="empty">Sin mensajes</div>'; return; }
+    el.innerHTML = groups.map(g => {
+      const last = g.messages[g.messages.length - 1];
+      const preview = last ? last.content.slice(0, 50) + (last.content.length > 50 ? '…' : '') : '';
+      const sel = g.userId === selectedId ? ' selected' : '';
+      return '<div class="user-item' + sel + '" onclick="selectConv(\\'' + g.userId + '\\')">' +
+        '<span class="ui-time">' + fmtPreview(g.lastAt) + '</span>' +
+        '<div class="ui-name">' + (g.name || g.phone) + '</div>' +
+        '<div class="ui-preview">' + preview + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderThread(group) {
+    document.getElementById('chat-header').textContent = (group.name || group.phone) + ' · ' + group.phone;
+    const el = document.getElementById('chat-messages');
+    el.innerHTML = group.messages.map(m =>
+      '<div><div class="msg ' + m.direction + '">' +
+        m.content.replace(/</g,'&lt;') +
+        '<div class="msg-time">' + fmtTime(m.created_at) + ' · ' + (m.direction === 'inbound' ? 'usuario' : 'Carditos') + '</div>' +
+      '</div></div>'
+    ).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  let currentGroups = [];
+  let selectedUserId = null;
+
+  function selectConv(userId) {
+    selectedUserId = userId;
+    const group = currentGroups.find(g => g.userId === userId);
+    if (group) renderThread(group);
+    renderConvList(currentGroups, userId);
+  }
+
+  async function loadMessages() {
+    allMessages = await api('/admin/messages');
+    currentGroups = groupByUser(allMessages);
+    renderConvList(currentGroups, selectedUserId);
+    if (selectedUserId) {
+      const g = currentGroups.find(g => g.userId === selectedUserId);
+      if (g) renderThread(g);
+    }
+  }
+
+  // init
   document.getElementById('overlay').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
 
-  load();
+  loadUsers();
 </script>
 </body>
 </html>`;
@@ -240,6 +364,26 @@ export async function adminListUsersHandler(req: Request, res: Response) {
     return res.status(500).json({ error: 'DB error' });
   }
   res.json(data || []);
+}
+
+export async function adminListMessagesHandler(req: Request, res: Response) {
+  if (!checkToken(req, res)) return;
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*, users(name, phone_number)')
+    .order('created_at', { ascending: true })
+    .limit(1000);
+  if (error) {
+    logger.error(error, 'Admin: failed to list messages');
+    return res.status(500).json({ error: 'DB error' });
+  }
+  const flat = (data || []).map((m: Record<string, unknown>) => ({
+    ...m,
+    user_name: (m.users as Record<string, unknown>)?.name ?? null,
+    user_phone: (m.users as Record<string, unknown>)?.phone_number ?? null,
+    users: undefined,
+  }));
+  res.json(flat);
 }
 
 export async function adminApproveHandler(req: Request, res: Response) {
@@ -303,7 +447,6 @@ export async function adminUpdateUserHandler(req: Request, res: Response) {
     return res.status(500).json({ error: 'DB error' });
   }
 
-  // Si se aprobó ahora, mandar welcome
   if (status === 'approved' && current?.status !== 'approved') {
     const targetPhone = (phone_number || current?.phone_number) as string;
     try {
@@ -315,6 +458,6 @@ export async function adminUpdateUserHandler(req: Request, res: Response) {
     }
   }
 
-  logger.info({ userId: id, updates: dbUpdates }, 'Admin: user updated');
+  logger.info({ userId: id }, 'Admin: user updated');
   res.json({ ok: true });
 }

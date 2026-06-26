@@ -8,6 +8,7 @@ import { chatHandler } from './routes/chat.js';
 import {
   adminPanelHandler,
   adminListUsersHandler,
+  adminListMessagesHandler,
   adminApproveHandler,
   adminRejectHandler,
   adminUpdateUserHandler,
@@ -38,6 +39,7 @@ app.post('/webhooks/whatsapp', whatsappWebhookHandler);
 // Admin panel
 app.get('/admin', adminPanelHandler);
 app.get('/admin/users', adminListUsersHandler);
+app.get('/admin/messages', adminListMessagesHandler);
 app.post('/admin/users/:id/approve', adminApproveHandler);
 app.post('/admin/users/:id/reject', adminRejectHandler);
 app.put('/admin/users/:id', adminUpdateUserHandler);
