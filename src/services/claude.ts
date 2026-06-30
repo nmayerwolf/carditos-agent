@@ -67,6 +67,27 @@ interface Message {
   content: string;
 }
 
+async function withDelayedMessage<T>(
+  factory: () => Promise<T>,
+  sendMessage: ((text: string) => Promise<void>) | undefined,
+  text: string,
+  delayMs = 10_000,
+): Promise<T> {
+  if (!sendMessage) return factory();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  timer = setTimeout(() => {
+    sendMessage(text).catch(() => {});
+  }, delayMs);
+  try {
+    const result = await factory();
+    clearTimeout(timer);
+    return result;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
 export interface ChatOptions {
   conversationHistory?: Message[];
   maxContextMessages?: number;
@@ -126,10 +147,6 @@ export async function chat(
       'Claude request',
     );
 
-    if (onIntermediateMessage) {
-      await onIntermediateMessage('Dame un segundo... 🏉');
-    }
-
     const startTime = Date.now();
 
     const systemBlocks: Anthropic.TextBlockParam[] = [
@@ -143,13 +160,18 @@ export async function chat(
       });
     }
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      tools: [fixtureToolDefinition],
-      system: systemBlocks,
-      messages,
-    });
+    const response = await withDelayedMessage(
+      () =>
+        client.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          tools: [fixtureToolDefinition],
+          system: systemBlocks,
+          messages,
+        }),
+      onIntermediateMessage,
+      'Dame un segundo... 🏉',
+    );
 
     if (response.stop_reason === 'tool_use') {
       const toolUseBlock = response.content.find(
@@ -161,12 +183,11 @@ export async function chat(
 
         logger.info({ category: input.category, teams: input.teams.length }, 'Generando fixture');
 
-        if (onIntermediateMessage) {
-          await onIntermediateMessage('Armando el fixture, dame unos segundos... 🏉');
-        }
-
-        const { text: fixtureText, tokensUsed: fixtureTokens } =
-          await generateFixtureWithClaude(input);
+        const { text: fixtureText, tokensUsed: fixtureTokens } = await withDelayedMessage(
+          () => generateFixtureWithClaude(input),
+          onIntermediateMessage,
+          'Armando el fixture, dame unos segundos... 🏉',
+        );
 
         const latency = Date.now() - startTime;
         const tokensUsed =
