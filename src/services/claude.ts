@@ -78,7 +78,11 @@ async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 16000,
+    thinking: {
+      type: 'enabled',
+      budget_tokens: 10000,
+    },
     system: [
       {
         type: 'text',
@@ -89,6 +93,7 @@ async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
     messages: [{ role: 'user', content: userMessage }],
   });
 
+  // Solo devolver los bloques de texto — los bloques de thinking quedan ocultos
   const text = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
   return text?.text ?? 'No se pudo generar el fixture.';
 }
