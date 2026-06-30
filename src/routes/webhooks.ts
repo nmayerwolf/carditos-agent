@@ -198,9 +198,18 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
 
       // approved
       if (!hasOutbound) {
-        await storeMessage(conversation.id, user.id, 'outbound', WELCOME_MSG);
-        await kapsoClient.sendMessage(phoneNumber, WELCOME_MSG);
-        return;
+        const { count: priorConvCount } = await supabase
+          .from('conversations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .neq('id', conversation.id);
+
+        if ((priorConvCount ?? 0) === 0) {
+          await storeMessage(conversation.id, user.id, 'outbound', WELCOME_MSG);
+          await kapsoClient.sendMessage(phoneNumber, WELCOME_MSG);
+          return;
+        }
+        // Usuario que vuelve — procesar su consulta directamente
       }
 
       const conversationHistory = getConversationContext(recentMessages || []).reverse();
