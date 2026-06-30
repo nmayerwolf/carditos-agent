@@ -55,8 +55,7 @@ const fixtureToolDefinition: Anthropic.Tool = {
       },
       mixed: {
         type: 'boolean',
-        description:
-          'Si es true, competitivos pueden jugar contra formativos. Por defecto false.',
+        description: 'Si es true, competitivos pueden jugar contra formativos. Por defecto false.',
       },
     },
     required: ['category', 'courts', 'teams', 'max_matches'],
