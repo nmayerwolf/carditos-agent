@@ -70,6 +70,7 @@ interface Message {
 export interface ChatOptions {
   conversationHistory?: Message[];
   maxContextMessages?: number;
+  onIntermediateMessage?: (text: string) => Promise<void>;
 }
 
 async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
@@ -94,7 +95,7 @@ async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
 
 export async function chat(query: string, options: ChatOptions = {}): Promise<string> {
   try {
-    const { conversationHistory = [], maxContextMessages = 30 } = options;
+    const { conversationHistory = [], maxContextMessages = 30, onIntermediateMessage } = options;
 
     const retrievalResults = await retrieveContext(query);
     const contextSection = formatContext(retrievalResults);
@@ -144,6 +145,10 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
         const input = toolUseBlock.input as FixtureInput;
 
         logger.info({ category: input.category, teams: input.teams.length }, 'Generando fixture');
+
+        if (onIntermediateMessage) {
+          await onIntermediateMessage('Armando el fixture... dame un segundo. 🏉');
+        }
 
         const fixtureText = await generateFixtureWithClaude(input);
 

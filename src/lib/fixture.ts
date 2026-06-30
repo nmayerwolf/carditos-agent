@@ -86,15 +86,9 @@ C4 · San Andrés 4 vs CUBA 2
 
 [Si modalidad Mixto, no separar por nivel]
 
-*Resumen*
-Equipo | Partidos | Libres | Rivales
-San Andrés 1 | 4 | 0 | Newman 1, SIC 1, CUBA 1, Newman 2
-
 REGLAS DE PRESENTACIÓN:
-- Mostrar únicamente una breve explicación de la estrategia (1-2 líneas).
-- Mostrar el fixture final y el resumen.
-- No mostrar razonamientos internos ni cálculos intermedios.
-- Si alguna regla no pudo cumplirse, explicar cuál y por qué.
+- Mostrar solo el fixture por rondas. Sin resumen, sin explicación de estrategia, sin razonamientos.
+- Si alguna regla no pudo cumplirse, agregar una sola línea al final explicando cuál y por qué.
 - Usar siempre *Ronda N* con asteriscos (negrita WhatsApp) para los títulos de ronda.
 - Usar _Competitivo_ y _Formativo_ con guiones bajos (cursiva WhatsApp) para separar niveles.
 - Usar CX · Equipo A vs Equipo B para cada partido (X = número de cancha).`;
