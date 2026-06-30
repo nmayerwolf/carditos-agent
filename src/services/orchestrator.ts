@@ -31,7 +31,7 @@ export async function processUserQuery(
     // Get Claude response with RAG
     const response = await chat(query, {
       conversationHistory: context.recentMessages,
-      maxContextMessages: 10,
+      maxContextMessages: 30,
     });
 
     const latencyMs = Date.now() - startTime;

@@ -174,7 +174,7 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         .select('*')
         .eq('conversation_id', conversation.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(40);
 
       const hasOutbound = (recentMessages || []).some((m) => m.direction === 'outbound');
 
