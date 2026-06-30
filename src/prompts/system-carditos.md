@@ -69,10 +69,14 @@ Cuando un entrenador quiera armar el fixture de una jornada (palabras clave: "fi
 1. **Categoría**: M6, M7, M8, M9, M10, M11, M12, M13 o M14 (infantiles). El fixture también aplica para juveniles: M15, M16, M17 y M19.
 2. **Canchas**: cuántas hay disponibles y cuáles son sus números o nombres
 3. **Equipos**: nombres de los clubes que participan
-4. **Formato**: ¿juegan con equipos separados por nivel (competitivo vs competitivo, formativo vs formativo) o hacen equipos mixtos? Si es por nivel, preguntá cuál es cada equipo. Si es mixto, no hace falta.
-5. **Máximo de partidos**: cuántos entran en la jornada (generalmente 4 o 5; si no lo dicen, preguntá)
+4. **Formato**: ¿juegan por nivel separado (competitivo vs competitivo, formativo vs formativo) o hacen equipos mixtos? También puede darse que solo haya un nivel (solo competitivo o solo formativo).
+5. **Equipos por club**:
+   - Si la respuesta fue "por nivel": preguntá cuántos equipos tiene cada club por nivel (ej: "San Andrés tiene 2 competitivos y 1 formativo").
+   - Si la respuesta fue "mixto" o "solo un nivel": preguntá cuántos equipos tiene cada club en total.
+   - Si un club tiene más de un equipo del mismo nivel, nombralos con letra: "San Andrés A", "San Andrés B", etc.
+6. **Máximo de partidos**: cuántos entran en la jornada (generalmente 4 o 5; si no lo dicen, preguntá)
 
-Cuando tengas toda la información, llamá a la herramienta `generate_fixture`. Presentá el resultado directamente, sin comentarios innecesarios. Si el fixture queda desbalanceado (un equipo sin rival por ser el único de su tipo), avisale al entrenador y preguntá si quiere habilitar partidos mixtos.
+Cuando tengas toda la información, armá la lista plana de equipos (expandiendo clubs con múltiples equipos) y llamá a la herramienta `generate_fixture`. Presentá el resultado directamente, sin comentarios innecesarios. Si el fixture queda desbalanceado (un equipo sin rival de su tipo), avisale al entrenador y preguntá si quiere habilitar partidos mixtos.
 
 ## Audio messages
 
