@@ -8,6 +8,7 @@ export interface ConversationContext {
   conversationId: string;
   userId: string;
   recentMessages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  sendIntermediateMessage?: (text: string) => Promise<void>;
 }
 
 export async function processUserQuery(
@@ -32,6 +33,7 @@ export async function processUserQuery(
     const response = await chat(query, {
       conversationHistory: context.recentMessages,
       maxContextMessages: 30,
+      onIntermediateMessage: context.sendIntermediateMessage,
     });
 
     const latencyMs = Date.now() - startTime;

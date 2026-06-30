@@ -225,6 +225,9 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         conversationId: conversation.id,
         userId: user.id,
         recentMessages: conversationHistory,
+        sendIntermediateMessage: async (text: string) => {
+          await kapsoClient.sendMessage(phoneNumber, text);
+        },
       });
 
       await kapsoClient.sendMessage(phoneNumber, response);

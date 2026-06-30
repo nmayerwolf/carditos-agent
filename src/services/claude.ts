@@ -115,6 +115,10 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
       'Claude request',
     );
 
+    if (onIntermediateMessage) {
+      await onIntermediateMessage('Dame un segundo... 🏉');
+    }
+
     const startTime = Date.now();
 
     const systemBlocks: Anthropic.TextBlockParam[] = [
@@ -145,10 +149,6 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
         const input = toolUseBlock.input as FixtureInput;
 
         logger.info({ category: input.category, teams: input.teams.length }, 'Generando fixture');
-
-        if (onIntermediateMessage) {
-          await onIntermediateMessage('Armando el fixture... dame un segundo. 🏉');
-        }
 
         const fixtureText = await generateFixtureWithClaude(input);
 
