@@ -6,47 +6,36 @@ interface RetrievalResult {
   chunkText: string;
 }
 
-const CACHE_TTL_MS = 30 * 60 * 1000;
-let corpusCache: RetrievalResult[] | null = null;
-let cacheLoadedAt = 0;
+const TOP_K = 5;
 
-export async function retrieveContext(_query: string): Promise<RetrievalResult[]> {
-  const now = Date.now();
-  if (corpusCache && now - cacheLoadedAt < CACHE_TTL_MS) {
-    return corpusCache;
-  }
-
+export async function retrieveContext(query: string): Promise<RetrievalResult[]> {
   try {
-    logger.info('Loading corpus from DB');
-
     const { data, error } = await supabase
       .from('corpus_documents')
       .select('title, content')
-      .order('ingested_at', { ascending: true });
+      .textSearch('content_tsv', query, { type: 'websearch', config: 'spanish' })
+      .limit(TOP_K);
 
     if (error) {
-      logger.error(error, 'Failed to load corpus');
-      return corpusCache || [];
+      logger.error(error, 'FTS search failed');
+      return [];
     }
 
-    corpusCache = (data || []).map((doc) => ({
+    const results = (data || []).map((doc) => ({
       documentTitle: doc.title as string,
       chunkText: doc.content as string,
     }));
-    cacheLoadedAt = now;
-    return corpusCache;
+
+    logger.info({ found: results.length }, 'FTS retrieval');
+    return results;
   } catch (err) {
     logger.error(err, 'Retrieval failed');
-    return corpusCache || [];
+    return [];
   }
 }
 
 export function formatContext(results: RetrievalResult[]): string {
-  if (results.length === 0) {
-    return '';
-  }
-
+  if (results.length === 0) return '';
   const sections = results.map((r) => `[${r.documentTitle}]\n${r.chunkText}`).join('\n\n---\n\n');
-
   return `Contexto del corpus:\n\n${sections}`;
 }

@@ -98,7 +98,6 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
 
     const retrievalResults = await retrieveContext(query);
     const contextSection = formatContext(retrievalResults);
-    const systemPrompt = `${baseSystemPrompt}\n\n${contextSection}`;
 
     const recentMessages = conversationHistory.slice(-maxContextMessages);
     const messages: Anthropic.MessageParam[] = [
@@ -117,17 +116,22 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
 
     const startTime = Date.now();
 
+    const systemBlocks: Anthropic.TextBlockParam[] = [
+      { type: 'text', text: baseSystemPrompt, cache_control: { type: 'ephemeral' } },
+    ];
+    if (contextSection) {
+      systemBlocks.push({
+        type: 'text',
+        text: contextSection,
+        cache_control: { type: 'ephemeral' },
+      });
+    }
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       tools: [fixtureToolDefinition],
-      system: [
-        {
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
+      system: systemBlocks,
       messages,
     });
 
