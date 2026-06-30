@@ -73,7 +73,9 @@ export interface ChatOptions {
   onIntermediateMessage?: (text: string) => Promise<void>;
 }
 
-async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
+async function generateFixtureWithClaude(
+  input: FixtureInput,
+): Promise<{ text: string; tokensUsed: number }> {
   const userMessage = buildFixtureUserMessage(input);
 
   const response = await client.messages.create({
@@ -95,7 +97,8 @@ async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
 
   // Solo devolver los bloques de texto — los bloques de thinking quedan ocultos
   const text = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
-  return text?.text ?? 'No se pudo generar el fixture.';
+  const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+  return { text: text?.text ?? 'No se pudo generar el fixture.', tokensUsed };
 }
 
 export async function chat(
@@ -158,10 +161,16 @@ export async function chat(
 
         logger.info({ category: input.category, teams: input.teams.length }, 'Generando fixture');
 
-        const fixtureText = await generateFixtureWithClaude(input);
+        if (onIntermediateMessage) {
+          await onIntermediateMessage('Armando el fixture, dame unos segundos... 🏉');
+        }
+
+        const { text: fixtureText, tokensUsed: fixtureTokens } =
+          await generateFixtureWithClaude(input);
 
         const latency = Date.now() - startTime;
-        const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+        const tokensUsed =
+          response.usage.input_tokens + response.usage.output_tokens + fixtureTokens;
         logger.info({ latencyMs: latency, tokensUsed }, 'Fixture generado');
 
         return { text: fixtureText, tokensUsed };
