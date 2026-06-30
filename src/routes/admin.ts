@@ -166,11 +166,13 @@ const PANEL_HTML = `<!DOCTYPE html>
     rejected: 'Rechazado'
   };
 
-  function fmtTokens(n) {
-    if (!n) return '—';
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-    return n.toString();
+  function fmtCost(tokens) {
+    if (!tokens) return '—';
+    // claude-sonnet-4-6: $3/MTok input, $15/MTok output
+    // Blended ~$4.80/MTok assuming 85% input / 15% output
+    const usd = (tokens / 1_000_000) * 4.80;
+    if (usd < 0.01) return '< $0.01';
+    return '$' + usd.toFixed(2);
   }
 
   function showTab(name) {
@@ -267,7 +269,7 @@ const PANEL_HTML = `<!DOCTYPE html>
       '<td>' + u.phone_number + '</td>' +
       '<td><span class="badge ' + u.status + '">' + STATUS_LABELS[u.status] + '</span></td>' +
       '<td>' + fmt(u.created_at) + '</td>' +
-      '<td style="font-variant-numeric:tabular-nums">' + fmtTokens(u.total_tokens) + '</td>' +
+      '<td style="font-variant-numeric:tabular-nums">' + fmtCost(u.total_tokens) + '</td>' +
       '<td><div class="actions">' + qa +
         '<button class="btn btn-edit"   onclick="openEdit(\\'' + u.id + '\\')">Editar</button>' +
         '<button class="btn btn-delete" onclick="deleteUser(\\'' + u.id + '\\')">Eliminar</button>' +
@@ -277,7 +279,7 @@ const PANEL_HTML = `<!DOCTYPE html>
   function renderUsers() {
     const pending = allUsers.filter(u => u.status === 'pending_name' || u.status === 'pending_approval');
     const rest    = allUsers.filter(u => u.status === 'approved'     || u.status === 'rejected');
-    const THEAD   = '<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Fecha</th><th>Tokens</th><th>Acciones</th></tr></thead><tbody>';
+    const THEAD   = '<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Fecha</th><th>Costo (aprox.)</th><th>Acciones</th></tr></thead><tbody>';
 
     document.getElementById('pending-card').innerHTML = pending.length
       ? THEAD + pending.map(u => buildRow(u, true)).join('') + '</tbody></table>'
