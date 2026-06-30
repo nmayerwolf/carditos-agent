@@ -30,7 +30,7 @@ export async function processUserQuery(
     }
 
     // Get Claude response with RAG
-    const response = await chat(query, {
+    const { text: response, tokensUsed } = await chat(query, {
       conversationHistory: context.recentMessages,
       maxContextMessages: 30,
       onIntermediateMessage: context.sendIntermediateMessage,
@@ -38,8 +38,15 @@ export async function processUserQuery(
 
     const latencyMs = Date.now() - startTime;
 
-    // Store outbound message
-    await storeMessage(context.conversationId, context.userId, 'outbound', response);
+    // Store outbound message with token count
+    await storeMessage(
+      context.conversationId,
+      context.userId,
+      'outbound',
+      response,
+      undefined,
+      tokensUsed,
+    );
 
     logger.info(
       {

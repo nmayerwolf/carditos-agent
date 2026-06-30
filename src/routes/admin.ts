@@ -55,6 +55,7 @@ const PANEL_HTML = `<!DOCTYPE html>
     .btn-approve { background: #198754; color: white; }
     .btn-reject  { background: #dc3545; color: white; }
     .btn-edit    { background: #6c757d; color: white; }
+    .btn-delete  { background: #7b1d1d; color: white; }
     .empty { padding: 32px; text-align: center; color: #bbb; font-size: 14px; }
 
     /* Messages tab */
@@ -165,6 +166,13 @@ const PANEL_HTML = `<!DOCTYPE html>
     rejected: 'Rechazado'
   };
 
+  function fmtTokens(n) {
+    if (!n) return '—';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return n.toString();
+  }
+
   function showTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -240,6 +248,15 @@ const PANEL_HTML = `<!DOCTYPE html>
     loadUsers();
   }
 
+  async function deleteUser(id) {
+    const u = allUsers.find(u => u.id === id);
+    const label = (u && (u.name || u.phone_number)) || id;
+    if (!confirm('¿Eliminar a ' + label + '?\\nEsta acción borra todos sus mensajes y no se puede deshacer.')) return;
+    await api('/admin/users/' + id, 'DELETE');
+    toast('Usuario eliminado');
+    loadUsers();
+  }
+
   function buildRow(u, showActions) {
     const qa = showActions
       ? '<button class="btn btn-approve" onclick="approve(\\'' + u.id + '\\')">Aprobar</button>' +
@@ -250,15 +267,17 @@ const PANEL_HTML = `<!DOCTYPE html>
       '<td>' + u.phone_number + '</td>' +
       '<td><span class="badge ' + u.status + '">' + STATUS_LABELS[u.status] + '</span></td>' +
       '<td>' + fmt(u.created_at) + '</td>' +
+      '<td style="font-variant-numeric:tabular-nums">' + fmtTokens(u.total_tokens) + '</td>' +
       '<td><div class="actions">' + qa +
-        '<button class="btn btn-edit" onclick="openEdit(\\'' + u.id + '\\')">Editar</button>' +
+        '<button class="btn btn-edit"   onclick="openEdit(\\'' + u.id + '\\')">Editar</button>' +
+        '<button class="btn btn-delete" onclick="deleteUser(\\'' + u.id + '\\')">Eliminar</button>' +
       '</div></td></tr>';
   }
 
   function renderUsers() {
     const pending = allUsers.filter(u => u.status === 'pending_name' || u.status === 'pending_approval');
     const rest    = allUsers.filter(u => u.status === 'approved'     || u.status === 'rejected');
-    const THEAD   = '<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>';
+    const THEAD   = '<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Fecha</th><th>Tokens</th><th>Acciones</th></tr></thead><tbody>';
 
     document.getElementById('pending-card').innerHTML = pending.length
       ? THEAD + pending.map(u => buildRow(u, true)).join('') + '</tbody></table>'
@@ -351,15 +370,32 @@ export async function adminPanelHandler(req: Request, res: Response) {
 
 export async function adminListUsersHandler(req: Request, res: Response) {
   if (!checkToken(req, res)) return;
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) {
-    logger.error(error, 'Admin: failed to list users');
+  const [usersResult, tokensResult] = await Promise.all([
+    supabase.from('users').select('*').order('created_at', { ascending: false }),
+    supabase
+      .from('messages')
+      .select('user_id, tokens_used')
+      .eq('direction', 'outbound')
+      .not('tokens_used', 'is', null),
+  ]);
+
+  if (usersResult.error) {
+    logger.error(usersResult.error, 'Admin: failed to list users');
     return res.status(500).json({ error: 'DB error' });
   }
-  res.json(data || []);
+
+  const tokensByUser: Record<string, number> = {};
+  for (const m of tokensResult.data || []) {
+    const uid = m.user_id as string;
+    tokensByUser[uid] = (tokensByUser[uid] || 0) + ((m.tokens_used as number) || 0);
+  }
+
+  const users = (usersResult.data || []).map((u) => ({
+    ...u,
+    total_tokens: tokensByUser[u.id as string] || 0,
+  }));
+
+  res.json(users);
 }
 
 export async function adminListMessagesHandler(req: Request, res: Response) {
@@ -409,6 +445,24 @@ export async function adminRejectHandler(req: Request, res: Response) {
   const id = req.params.id as string;
   await updateUser(id, { status: 'rejected' });
   logger.info({ userId: id }, 'Admin: user rejected');
+  res.json({ ok: true });
+}
+
+export async function adminDeleteUserHandler(req: Request, res: Response) {
+  if (!checkToken(req, res)) return;
+  const id = req.params.id as string;
+
+  // Borrar en orden: mensajes → conversaciones → usuario
+  await supabase.from('messages').delete().eq('user_id', id);
+  await supabase.from('conversations').delete().eq('user_id', id);
+  const { error } = await supabase.from('users').delete().eq('id', id);
+
+  if (error) {
+    logger.error(error, 'Admin: failed to delete user');
+    return res.status(500).json({ error: 'DB error' });
+  }
+
+  logger.info({ userId: id }, 'Admin: user deleted');
   res.json({ ok: true });
 }
 

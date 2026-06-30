@@ -98,7 +98,10 @@ async function generateFixtureWithClaude(input: FixtureInput): Promise<string> {
   return text?.text ?? 'No se pudo generar el fixture.';
 }
 
-export async function chat(query: string, options: ChatOptions = {}): Promise<string> {
+export async function chat(
+  query: string,
+  options: ChatOptions = {},
+): Promise<{ text: string; tokensUsed: number }> {
   try {
     const { conversationHistory = [], maxContextMessages = 30, onIntermediateMessage } = options;
 
@@ -158,15 +161,17 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
         const fixtureText = await generateFixtureWithClaude(input);
 
         const latency = Date.now() - startTime;
-        logger.info({ latencyMs: latency }, 'Fixture generado');
+        const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+        logger.info({ latencyMs: latency, tokensUsed }, 'Fixture generado');
 
-        return fixtureText;
+        return { text: fixtureText, tokensUsed };
       }
     }
 
     const latency = Date.now() - startTime;
     const textContent = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
     const responseText = textContent?.text ?? '';
+    const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
 
     logger.info(
       {
@@ -179,7 +184,7 @@ export async function chat(query: string, options: ChatOptions = {}): Promise<st
       'Claude response',
     );
 
-    return responseText;
+    return { text: responseText, tokensUsed };
   } catch (err) {
     logger.error(err, 'Claude API error');
     throw err;

@@ -119,6 +119,7 @@ export async function storeMessage(
   direction: 'inbound' | 'outbound',
   content: string,
   mediaUrl?: string,
+  tokensUsed?: number,
 ): Promise<Message> {
   const { data: message, error } = await supabase
     .from('messages')
@@ -129,6 +130,7 @@ export async function storeMessage(
         direction,
         content,
         media_url: mediaUrl,
+        tokens_used: tokensUsed ?? null,
       },
     ])
     .select()

@@ -12,6 +12,7 @@ import {
   adminApproveHandler,
   adminRejectHandler,
   adminUpdateUserHandler,
+  adminDeleteUserHandler,
 } from './routes/admin.js';
 
 const app = express();
@@ -43,6 +44,7 @@ app.get('/admin/messages', adminListMessagesHandler);
 app.post('/admin/users/:id/approve', adminApproveHandler);
 app.post('/admin/users/:id/reject', adminRejectHandler);
 app.put('/admin/users/:id', adminUpdateUserHandler);
+app.delete('/admin/users/:id', adminDeleteUserHandler);
 
 // 404
 app.use((req: Request, res: Response) => {
