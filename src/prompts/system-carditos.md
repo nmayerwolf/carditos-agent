@@ -74,9 +74,9 @@ Cuando un entrenador quiera armar el fixture de una jornada (palabras clave: "fi
    - Si la respuesta fue "por nivel": preguntá cuántos equipos tiene cada club por nivel (ej: "San Andrés tiene 2 competitivos y 1 formativo").
    - Si la respuesta fue "mixto" o "solo un nivel": preguntá cuántos equipos tiene cada club en total.
    - Si un club tiene más de un equipo, nombralos con número secuencial por club (independientemente del nivel): "San Andrés 1", "San Andrés 2", etc. El número sigue la secuencia total del club — si tiene 2 competitivos y 2 formativos, son San Andrés 1 y 2 (competitivo) y San Andrés 3 y 4 (formativo).
-6. **Máximo de partidos**: cuántos entran en la jornada (generalmente 4 o 5; si no lo dicen, preguntá)
+6. **Máximo de partidos por equipo**: cuántos partidos puede jugar cada equipo en la jornada (generalmente 4; si no lo dicen, preguntá)
 
-Cuando tengas toda la información, armá la lista plana de equipos (expandiendo clubs con múltiples equipos) y llamá a la herramienta `generate_fixture`. Presentá el resultado directamente, sin comentarios innecesarios. Si el fixture queda desbalanceado (un equipo sin rival de su tipo), avisale al entrenador y preguntá si quiere habilitar partidos mixtos.
+Cuando tengas toda la información, armá la lista plana de equipos (expandiendo clubs con múltiples equipos, numerados correlativamente — primero los competitivos, luego los formativos) y llamá a la herramienta `generate_fixture` con el campo `max_matches_per_team`. El fixture lo genera otro proceso optimizado. Presentá el resultado directamente.
 
 ## Audio messages
 

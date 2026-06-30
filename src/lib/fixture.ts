@@ -3,86 +3,98 @@ export interface FixtureTeam {
   type: 'competitivo' | 'formativo';
 }
 
-export interface FixtureMatch {
-  court: string;
-  home: string;
-  away: string;
-}
-
-export interface FixtureRound {
-  matches: FixtureMatch[];
-}
-
 export interface FixtureInput {
+  category: string;
   courts: string[];
   teams: FixtureTeam[];
-  max_matches: number;
+  max_matches_per_team: number;
   mixed?: boolean;
-  category: string;
 }
 
-export interface FixtureOutput {
-  category: string;
-  rounds: FixtureRound[];
+export function buildFixtureUserMessage(input: FixtureInput): string {
+  const { category, courts, teams, max_matches_per_team, mixed = false } = input;
+  const modalidad = mixed ? 'Mixto' : 'Competitivo/Formativo';
+
+  const teamLines = teams.map((t) => `- ${t.name}${mixed ? '' : ` (${t.type})`}`).join('\n');
+
+  return `Generá el fixture para esta jornada.
+
+Categoría: ${category}
+Canchas disponibles: ${courts.length} (${courts.map((c) => `Cancha ${c}`).join(', ')})
+Modalidad: ${modalidad}
+Máximo de partidos por equipo: ${max_matches_per_team}
+
+Equipos:
+${teamLines}`;
 }
 
-function buildPairs(teams: FixtureTeam[], mixed: boolean): [FixtureTeam, FixtureTeam][] {
-  const pairs: [FixtureTeam, FixtureTeam][] = [];
+export const FIXTURE_SPEC = `Sos un organizador experto de fixtures de rugby infantil.
 
-  if (mixed) {
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        pairs.push([teams[i], teams[j]]);
-      }
-    }
-    return pairs;
-  }
+Tu objetivo es generar el fixture óptimo para una jornada respetando estas prioridades:
 
-  for (const type of ['competitivo', 'formativo'] as const) {
-    const group = teams.filter((t) => t.type === type);
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) {
-        pairs.push([group[i], group[j]]);
-      }
-    }
-  }
+PRIORIDAD 1 (Obligatoria): Cumplir todas las reglas obligatorias. Si alguna no pudiera cumplirse, minimizar las excepciones.
+PRIORIDAD 2: Que todos los equipos jueguen una cantidad de partidos lo más pareja posible. Idealmente: máximo partidos − mínimo partidos ≤ 1.
+PRIORIDAD 3: Maximizar la cantidad de rivales distintos. Evitar repetir enfrentamientos hasta que todos los cruces posibles hayan ocurrido.
+PRIORIDAD 4: Distribuir los equipos Libres de la forma más equitativa posible. Idealmente: máximo libres − mínimo libres ≤ 1.
+PRIORIDAD 5: Minimizar los tiempos muertos. Evitar que un equipo tenga dos Libres consecutivos o más de un descanso entre partidos cuando pueda evitarse.
+PRIORIDAD 6: Utilizar todas las canchas disponibles en cada ronda siempre que sea posible.
+PRIORIDAD 7: Minimizar la cantidad total de rondas.
 
-  return pairs;
-}
+REGLAS OBLIGATORIAS:
+- Ningún equipo puede jugar más del máximo indicado.
+- Un equipo no puede jugar dos partidos en la misma ronda.
+- Un club no puede tener dos equipos jugando simultáneamente en la misma cancha.
+- Cada cancha solo puede tener un partido por ronda.
+- Modalidad Competitivo/Formativo: los competitivos juegan únicamente contra competitivos, los formativos únicamente contra formativos.
+- Modalidad Mixto: cualquier equipo puede jugar contra cualquier otro.
+- No programar partidos entre equipos del mismo club, salvo que sea absolutamente imposible cumplir el resto de las reglas.
 
-export function generateFixture(input: FixtureInput): FixtureOutput {
-  const { courts, teams, max_matches, mixed = false, category } = input;
+EQUIPOS LIBRES:
+- Si en una ronda queda un número impar de equipos disponibles, asignar un Libre.
+- El Libre cuenta como descanso, no como partido.
+- Distribuir los Libres de la forma más equitativa posible.
+- Un equipo no debería recibir un segundo Libre hasta que todos los demás hayan recibido uno, salvo que sea inevitable.
+- Evitar dos Libres consecutivos para el mismo equipo.
 
-  const pairs = buildPairs(teams, mixed).slice(0, max_matches);
+NOMENCLATURA: Los equipos de cada club se numeran correlativamente. Si existen niveles, primero los competitivos, luego los formativos.
 
-  const rounds: FixtureRound[] = [];
-  let i = 0;
+ALGORITMO:
+1. Construir la lista de equipos.
+2. Identificar el nivel de cada equipo (si aplica).
+3. Generar todos los cruces válidos.
+4. Asignar partidos por rondas optimizando las prioridades.
+5. Validar el resultado.
+6. Si existe una mejor distribución, utilizarla.
 
-  while (i < pairs.length) {
-    const roundMatches: FixtureMatch[] = [];
-    for (let c = 0; c < courts.length && i < pairs.length; c++, i++) {
-      roundMatches.push({
-        court: courts[c],
-        home: pairs[i][0].name,
-        away: pairs[i][1].name,
-      });
-    }
-    rounds.push({ matches: roundMatches });
-  }
+VALIDACIÓN ANTES DE MOSTRAR: Verificar que ningún equipo supere el máximo, no haya dos partidos simultáneos del mismo equipo, no haya dos partidos en la misma cancha por ronda, se respeten los niveles, los Libres estén distribuidos equitativamente, no existan cruces repetidos salvo necesidad, y no existan partidos entre equipos del mismo club salvo que sea inevitable. Si alguna validación falla, recalcular.
 
-  return { category, rounds };
-}
+FORMATO DE SALIDA (WhatsApp — sin headers markdown, sin #):
 
-export function formatFixture(output: FixtureOutput): string {
-  const lines: string[] = [`🏉 Fixture ${output.category}`];
+🏉 Fixture [Categoría]
 
-  for (let i = 0; i < output.rounds.length; i++) {
-    lines.push('');
-    lines.push(`*Ronda ${i + 1}*`);
-    for (const match of output.rounds[i].matches) {
-      lines.push(`C${match.court} · ${match.home} vs ${match.away}`);
-    }
-  }
+*Ronda 1*
+[Si modalidad Competitivo/Formativo, separar por nivel dentro de la ronda]
 
-  return lines.join('\n');
-}
+_Competitivo_
+C1 · San Andrés 1 vs Newman 1
+C2 · San Andrés 2 vs SIC 1
+Libre: CUBA 1
+
+_Formativo_
+C3 · San Andrés 3 vs Newman 2
+C4 · San Andrés 4 vs CUBA 2
+
+[Si modalidad Mixto, no separar por nivel]
+
+*Resumen*
+Equipo | Partidos | Libres | Rivales
+San Andrés 1 | 4 | 0 | Newman 1, SIC 1, CUBA 1, Newman 2
+
+REGLAS DE PRESENTACIÓN:
+- Mostrar únicamente una breve explicación de la estrategia (1-2 líneas).
+- Mostrar el fixture final y el resumen.
+- No mostrar razonamientos internos ni cálculos intermedios.
+- Si alguna regla no pudo cumplirse, explicar cuál y por qué.
+- Usar siempre *Ronda N* con asteriscos (negrita WhatsApp) para los títulos de ronda.
+- Usar _Competitivo_ y _Formativo_ con guiones bajos (cursiva WhatsApp) para separar niveles.
+- Usar CX · Equipo A vs Equipo B para cada partido (X = número de cancha).`;
