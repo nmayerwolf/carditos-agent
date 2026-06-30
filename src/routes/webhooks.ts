@@ -18,6 +18,8 @@ import { WELCOME_MSG, ASK_NAME_MSG, PENDING_MSG, STILL_PENDING_MSG } from '../li
 
 const FALLBACK_ERROR_MSG = 'Tuve un problema técnico, intentá de nuevo en un momento. 🏉';
 
+const processingLocks = new Set<string>();
+
 function extractMessageContent(msg: NonNullable<KapsoWebhookPayload['message']>): string | null {
   if (msg.type === 'text' && msg.text?.body) {
     return msg.text.body;
@@ -155,6 +157,12 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
       return;
     }
 
+    if (processingLocks.has(phoneNumber)) {
+      logger.warn({ from: phoneNumber }, 'Message dropped — already processing');
+      return;
+    }
+
+    processingLocks.add(phoneNumber);
     try {
       const user = await getOrCreateUser(phoneNumber);
       const conversation = await getOrCreateConversation(user.id, body.conversation?.id);
@@ -227,6 +235,8 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
       } catch {
         // noop
       }
+    } finally {
+      processingLocks.delete(phoneNumber);
     }
   } catch (err) {
     logger.error(err, 'Webhook handler error');
