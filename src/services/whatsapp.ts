@@ -34,6 +34,18 @@ class KapsoClient {
     }
   }
 
+  async sendTyping(messageId: string): Promise<void> {
+    try {
+      await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
+        messaging_product: 'whatsapp',
+        status: 'typing',
+        message_id: messageId,
+      });
+    } catch (err) {
+      logger.warn(err, 'Failed to send typing indicator');
+    }
+  }
+
   private splitMessage(message: string, limit = 4096): string[] {
     if (message.length <= limit) return [message];
 
