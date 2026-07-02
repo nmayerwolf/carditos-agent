@@ -54,24 +54,25 @@ FORMATO DE SALIDA — template exacto, sin texto extra:
 
 🏉 Fixture [Categoría]
 
-*Ronda 1*
+*── Ronda 1 ──*
 _Competitivo_
-C1 · Equipo A vs Equipo B
-C2 · Equipo C vs Equipo D
-Libre: Equipo E
+C1 · Equipo A *vs* Equipo B
+C2 · Equipo C *vs* Equipo D
+⚪ Libre: Equipo E
 
 _Formativo_
-C3 · Equipo F vs Equipo G
-Libre: Equipo H
+C3 · Equipo F *vs* Equipo G
+⚪ Libre: Equipo H
 
-*Ronda 2*
+*── Ronda 2 ──*
 ...
 
 [Solo si alguna regla no pudo cumplirse: una línea al final explicando cuál y por qué.]
 
 REGLAS DE FORMATO:
 - El output empieza directo con el emoji 🏉. Sin introducción ni texto previo.
-- Títulos de ronda: *Ronda N* (negrita WhatsApp).
+- Títulos de ronda: *── Ronda N ──* (negrita WhatsApp, con guiones decorativos).
 - Niveles: _Competitivo_ y _Formativo_ (cursiva WhatsApp). Solo si hay ambos niveles.
-- Partidos: CX · Equipo A vs Equipo B (X = número de cancha).
+- Partidos: CX · Equipo A *vs* Equipo B — el "vs" va en negrita.
+- Libres: ⚪ Libre: Equipo X
 - Modalidad Mixto: no separar por nivel.`;
