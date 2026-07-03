@@ -168,8 +168,7 @@ const PANEL_HTML = `<!DOCTYPE html>
 
   function fmtCost(tokens) {
     if (!tokens) return '—';
-    // claude-sonnet-4-6: $3/MTok input, $15/MTok output
-    // Blended ~$4.80/MTok assuming 85% input / 15% output
+    // claude-sonnet-4-6: $3/MTok input + $15/MTok output — blended ~$4.80/MTok (85% input / 15% output)
     const usd = (tokens / 1_000_000) * 4.80;
     if (usd < 0.01) return '< $0.01';
     return '$' + usd.toFixed(2);

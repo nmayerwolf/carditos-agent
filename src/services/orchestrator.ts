@@ -9,6 +9,7 @@ export interface ConversationContext {
   userId: string;
   recentMessages: Array<{ role: 'user' | 'assistant'; content: string }>;
   sendIntermediateMessage?: (text: string) => Promise<void>;
+  sendVideo?: (url: string, caption: string) => Promise<void>;
 }
 
 export async function processUserQuery(
@@ -30,7 +31,7 @@ export async function processUserQuery(
     }
 
     // Get Claude response with RAG
-    const { text: response, tokensUsed } = await chat(query, {
+    const { text: response, tokensUsed, video } = await chat(query, {
       conversationHistory: context.recentMessages,
       maxContextMessages: 30,
       onIntermediateMessage: context.sendIntermediateMessage,
@@ -47,6 +48,12 @@ export async function processUserQuery(
       undefined,
       tokensUsed,
     );
+
+    if (video && context.sendVideo) {
+      context.sendVideo(video.url, video.title).catch((err) => {
+        logger.error(err, 'Failed to send video');
+      });
+    }
 
     logger.info(
       {

@@ -46,6 +46,22 @@ class KapsoClient {
     }
   }
 
+  async sendVideo(toPhoneNumber: string, url: string, caption?: string): Promise<void> {
+    try {
+      await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: toPhoneNumber,
+        type: 'video',
+        video: { link: url, ...(caption ? { caption } : {}) },
+      });
+      logger.info({ to: toPhoneNumber }, 'Video sent');
+    } catch (err) {
+      logger.error(err, 'Failed to send video');
+      throw err;
+    }
+  }
+
   private splitMessage(message: string, limit = 4096): string[] {
     if (message.length <= limit) return [message];
 

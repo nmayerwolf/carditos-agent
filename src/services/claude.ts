@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '../lib/logger.js';
 import { retrieveContext, formatContext } from './retrieval.js';
 import { buildFixtureUserMessage, FIXTURE_SPEC } from '../lib/fixture.js';
+import { getVideosCatalog, formatVideosCatalog } from './videos.js';
 import type { FixtureInput } from '../lib/fixture.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,6 +17,8 @@ const client = new Anthropic({
 
 const systemPromptPath = path.join(__dirname, '../prompts/system-carditos.md');
 const baseSystemPrompt = fs.readFileSync(systemPromptPath, 'utf-8');
+
+const VIDEO_MARKER_RE = /\[VIDEO:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\s*$/i;
 
 const fixtureToolDefinition: Anthropic.Tool = {
   name: 'generate_fixture',
@@ -94,6 +97,12 @@ export interface ChatOptions {
   onIntermediateMessage?: (text: string) => Promise<void>;
 }
 
+export interface VideoRef {
+  url: string;
+  title: string;
+}
+
+
 async function generateFixtureWithClaude(
   input: FixtureInput,
 ): Promise<{ text: string; tokensUsed: number }> {
@@ -116,7 +125,6 @@ async function generateFixtureWithClaude(
     messages: [{ role: 'user', content: userMessage }],
   });
 
-  // Solo devolver los bloques de texto — los bloques de thinking quedan ocultos
   const text = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
   const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
   return { text: text?.text ?? 'No se pudo generar el fixture.', tokensUsed };
@@ -125,12 +133,17 @@ async function generateFixtureWithClaude(
 export async function chat(
   query: string,
   options: ChatOptions = {},
-): Promise<{ text: string; tokensUsed: number }> {
+): Promise<{ text: string; tokensUsed: number; video?: VideoRef }> {
   try {
     const { conversationHistory = [], maxContextMessages = 30, onIntermediateMessage } = options;
 
-    const retrievalResults = await retrieveContext(query);
+    const [retrievalResults, videos] = await Promise.all([
+      retrieveContext(query),
+      getVideosCatalog(),
+    ]);
+
     const contextSection = formatContext(retrievalResults);
+    const videoCatalog = formatVideosCatalog(videos);
 
     const recentMessages = conversationHistory.slice(-maxContextMessages);
     const messages: Anthropic.MessageParam[] = [
@@ -143,6 +156,7 @@ export async function chat(
         queryLength: query.length,
         historyLength: recentMessages.length,
         contextSections: retrievalResults.length,
+        videosInCatalog: videos.length,
       },
       'Claude request',
     );
@@ -156,6 +170,13 @@ export async function chat(
       systemBlocks.push({
         type: 'text',
         text: contextSection,
+        cache_control: { type: 'ephemeral' },
+      });
+    }
+    if (videoCatalog) {
+      systemBlocks.push({
+        type: 'text',
+        text: videoCatalog,
         cache_control: { type: 'ephemeral' },
       });
     }
@@ -195,8 +216,14 @@ export async function chat(
 
     const latency = Date.now() - startTime;
     const textContent = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
-    const responseText = textContent?.text ?? '';
+    const rawText = textContent?.text ?? '';
     const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+
+    // Parse optional [VIDEO:uuid] marker
+    const videoMatch = rawText.match(VIDEO_MARKER_RE);
+    const cleanText = videoMatch ? rawText.replace(videoMatch[0], '').trimEnd() : rawText;
+    const videoId = videoMatch?.[1] ?? null;
+    const videoRef = videoId ? videos.find((v) => v.id === videoId) : null;
 
     logger.info(
       {
@@ -205,11 +232,16 @@ export async function chat(
         cacheCreationTokens: response.usage.cache_creation_input_tokens || 0,
         cacheReadTokens: response.usage.cache_read_input_tokens || 0,
         outputTokens: response.usage.output_tokens,
+        videoId: videoId ?? undefined,
       },
       'Claude response',
     );
 
-    return { text: responseText, tokensUsed };
+    return {
+      text: cleanText,
+      tokensUsed,
+      ...(videoRef ? { video: { url: videoRef.url, title: videoRef.title } } : {}),
+    };
   } catch (err) {
     logger.error(err, 'Claude API error');
     throw err;

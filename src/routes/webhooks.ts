@@ -229,6 +229,9 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         sendIntermediateMessage: async (text: string) => {
           await kapsoClient.sendMessage(phoneNumber, text);
         },
+        sendVideo: async (url: string, caption: string) => {
+          await kapsoClient.sendVideo(phoneNumber, url, caption);
+        },
       });
 
       await kapsoClient.sendMessage(phoneNumber, response);
