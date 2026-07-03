@@ -10,8 +10,8 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-const BUCKET = 'videos';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+const BUCKET = 'Videos';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   console.error('Faltan SUPABASE_URL o SUPABASE_SERVICE_KEY en .env');
