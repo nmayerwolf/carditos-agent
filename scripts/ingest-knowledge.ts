@@ -16,7 +16,12 @@ type Category = 'reglamento' | 'ejercicios' | 'manejo_grupal' | 'modalidades';
 
 function detectCategory(filename: string): Category {
   const lower = filename.toLowerCase();
-  if (lower.includes('reglamento') || lower.includes('urba') || lower.includes('referato')) {
+  if (
+    lower.includes('reglamento') ||
+    lower.includes('urba') ||
+    lower.includes('referato') ||
+    lower.includes('clasificaci')
+  ) {
     return 'reglamento';
   }
   if (lower.includes('modelo') || lower.includes('juego') || lower.includes('modalidad')) {
