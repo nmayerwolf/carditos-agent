@@ -31,7 +31,11 @@ export async function processUserQuery(
     }
 
     // Get Claude response with RAG
-    const { text: response, tokensUsed, video } = await chat(query, {
+    const {
+      text: response,
+      tokensUsed,
+      video,
+    } = await chat(query, {
       conversationHistory: context.recentMessages,
       maxContextMessages: 30,
       onIntermediateMessage: context.sendIntermediateMessage,

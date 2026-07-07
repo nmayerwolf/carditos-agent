@@ -32,7 +32,8 @@ export async function getVideosCatalog(): Promise<CorpusVideo[]> {
 export function formatVideosCatalog(videos: CorpusVideo[]): string {
   if (videos.length === 0) return '';
   const lines = videos.map(
-    (v) => `- [${v.id}] ${v.title}${v.description ? ` — ${v.description}` : ''} (tags: ${v.tags.join(', ')})`,
+    (v) =>
+      `- [${v.id}] ${v.title}${v.description ? ` — ${v.description}` : ''} (tags: ${v.tags.join(', ')})`,
   );
   return `Videos disponibles:\n${lines.join('\n')}`;
 }

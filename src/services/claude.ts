@@ -18,7 +18,8 @@ const client = new Anthropic({
 const systemPromptPath = path.join(__dirname, '../prompts/system-carditos.md');
 const baseSystemPrompt = fs.readFileSync(systemPromptPath, 'utf-8');
 
-const VIDEO_MARKER_RE = /\[VIDEO:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\s*$/i;
+const VIDEO_MARKER_RE =
+  /\[VIDEO:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\s*$/i;
 
 const fixtureToolDefinition: Anthropic.Tool = {
   name: 'generate_fixture',
@@ -101,7 +102,6 @@ export interface VideoRef {
   url: string;
   title: string;
 }
-
 
 async function generateFixtureWithClaude(
   input: FixtureInput,

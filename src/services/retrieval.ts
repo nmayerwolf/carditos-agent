@@ -10,11 +10,53 @@ const TOP_K = 5;
 const OR_FALLBACK_LIMIT = 20;
 
 const STOPWORDS = new Set([
-  'a', 'al', 'ante', 'como', 'con', 'cual', 'cuales', 'cuando',
-  'de', 'del', 'el', 'ella', 'ellas', 'ellos', 'en', 'entre',
-  'es', 'esta', 'este', 'esto', 'la', 'las', 'lo', 'los', 'mi', 'mis',
-  'nos', 'o', 'para', 'per', 'por', 'que', 'se', 'si', 'sin', 'sobre',
-  'su', 'sus', 'te', 'tu', 'tus', 'u', 'un', 'una', 'unas', 'unos', 'y',
+  'a',
+  'al',
+  'ante',
+  'como',
+  'con',
+  'cual',
+  'cuales',
+  'cuando',
+  'de',
+  'del',
+  'el',
+  'ella',
+  'ellas',
+  'ellos',
+  'en',
+  'entre',
+  'es',
+  'esta',
+  'este',
+  'esto',
+  'la',
+  'las',
+  'lo',
+  'los',
+  'mi',
+  'mis',
+  'nos',
+  'o',
+  'para',
+  'per',
+  'por',
+  'que',
+  'se',
+  'si',
+  'sin',
+  'sobre',
+  'su',
+  'sus',
+  'te',
+  'tu',
+  'tus',
+  'u',
+  'un',
+  'una',
+  'unas',
+  'unos',
+  'y',
 ]);
 
 function significantTerms(query: string): string[] {
@@ -53,8 +95,12 @@ export async function retrieveContext(query: string): Promise<RetrievalResult[]>
         if (!error && data) {
           data = [...data]
             .sort((a, b) => {
-              const scoreA = terms.filter((t) => (a.content as string).toLowerCase().includes(t)).length;
-              const scoreB = terms.filter((t) => (b.content as string).toLowerCase().includes(t)).length;
+              const scoreA = terms.filter((t) =>
+                (a.content as string).toLowerCase().includes(t),
+              ).length;
+              const scoreB = terms.filter((t) =>
+                (b.content as string).toLowerCase().includes(t),
+              ).length;
               return scoreB - scoreA;
             })
             .slice(0, TOP_K);

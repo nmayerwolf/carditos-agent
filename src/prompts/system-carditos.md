@@ -118,6 +118,7 @@ Cuando respondés sobre un ejercicio o drill específico, puede haber un video r
 Si hay un video relevante para lo que pidió el entrenador, agregá exactamente al final de tu respuesta: `[VIDEO:uuid]` (con el UUID del video).
 
 Reglas:
+
 - Solo un video por respuesta.
 - Solo si el video es genuinamente útil para lo que se preguntó — no lo mandés de relleno.
 - No menciones el video en el texto de la respuesta. Solo poné el marcador al final.
