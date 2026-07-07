@@ -27,7 +27,13 @@ function detectCategory(filename: string): Category {
   if (lower.includes('modelo') || lower.includes('juego') || lower.includes('modalidad')) {
     return 'modalidades';
   }
-  if (lower.includes('drill') || lower.includes('ejercicio') || lower.includes('entrenamiento')) {
+  if (
+    lower.includes('drill') ||
+    lower.includes('ejercicio') ||
+    lower.includes('entrenamiento') ||
+    lower.includes('constraint') ||
+    lower.includes('ecological')
+  ) {
     return 'ejercicios';
   }
   return 'manejo_grupal';
