@@ -22,27 +22,19 @@ class KapsoClient {
     });
   }
 
-  async markAsRead(messageId: string): Promise<void> {
+  // El indicador de "escribiendo..." no es un status separado: la API de
+  // WhatsApp Cloud lo muestra (hasta 25s, o hasta la próxima respuesta)
+  // solo cuando viaja junto al mark-as-read en el mismo request.
+  async markAsRead(messageId: string, showTyping = true): Promise<void> {
     try {
       await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
         messaging_product: 'whatsapp',
         status: 'read',
         message_id: messageId,
+        ...(showTyping ? { typing_indicator: { type: 'text' } } : {}),
       });
     } catch (err) {
       logger.warn(err, 'Failed to mark message as read');
-    }
-  }
-
-  async sendTyping(messageId: string): Promise<void> {
-    try {
-      await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
-        messaging_product: 'whatsapp',
-        status: 'typing',
-        message_id: messageId,
-      });
-    } catch (err) {
-      logger.warn(err, 'Failed to send typing indicator');
     }
   }
 

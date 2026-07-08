@@ -130,7 +130,6 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
     const phoneNumber = msg.from;
 
     kapsoClient.markAsRead(msg.id).catch(() => {});
-    kapsoClient.sendTyping(msg.id).catch(() => {});
 
     const messageContent = extractMessageContent(msg);
 
