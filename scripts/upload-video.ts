@@ -10,7 +10,10 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_ANON_KEY;
 const BUCKET = 'Videos';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -24,7 +27,9 @@ async function main() {
   const [, , filePath, title, description, tagsRaw] = process.argv;
 
   if (!filePath || !title) {
-    console.error('Uso: npx tsx scripts/upload-video.ts <archivo> "<título>" "<descripción>" "tag1,tag2"');
+    console.error(
+      'Uso: npx tsx scripts/upload-video.ts <archivo> "<título>" "<descripción>" "tag1,tag2"',
+    );
     process.exit(1);
   }
 
@@ -39,7 +44,12 @@ async function main() {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9.+_ -]/g, '');
-  const tags = tagsRaw ? tagsRaw.split(',').map((t) => t.trim()).filter(Boolean) : [];
+  const tags = tagsRaw
+    ? tagsRaw
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
 
   const CONTENT_TYPES: Record<string, string> = {
     '.mp4': 'video/mp4',
@@ -55,12 +65,10 @@ async function main() {
   console.log(`Subiendo ${fileName} al bucket "${BUCKET}"...`);
 
   const fileBuffer = fs.readFileSync(filePath);
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(fileName, fileBuffer, {
-      contentType,
-      upsert: false,
-    });
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(fileName, fileBuffer, {
+    contentType,
+    upsert: false,
+  });
 
   if (uploadError) {
     console.error('Error al subir el archivo:', uploadError.message);
