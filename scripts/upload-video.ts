@@ -33,8 +33,24 @@ async function main() {
     process.exit(1);
   }
 
-  const fileName = path.basename(filePath);
+  const originalName = path.basename(filePath);
+  // Supabase Storage rechaza acentos y otros caracteres no-ASCII en la key.
+  const fileName = originalName
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9.+_ -]/g, '');
   const tags = tagsRaw ? tagsRaw.split(',').map((t) => t.trim()).filter(Boolean) : [];
+
+  const CONTENT_TYPES: Record<string, string> = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+  };
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = CONTENT_TYPES[ext];
+  if (!contentType) {
+    console.error(`Extensión no soportada: ${ext}`);
+    process.exit(1);
+  }
 
   console.log(`Subiendo ${fileName} al bucket "${BUCKET}"...`);
 
@@ -42,7 +58,7 @@ async function main() {
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(fileName, fileBuffer, {
-      contentType: 'video/mp4',
+      contentType,
       upsert: false,
     });
 

@@ -36,6 +36,8 @@ content/rugby-knowledge/*.docx
 content/rugby-knowledge/*.jpg
 content/rugby-knowledge/*.jpeg
 content/rugby-knowledge/*.png
+content/rugby-knowledge/*.mp4
+content/rugby-knowledge/*.mov
 
 # ─── Misc ───
 .npm/
