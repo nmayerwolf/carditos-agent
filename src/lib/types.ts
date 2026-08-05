@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   phoneNumber: string;
+  whatsappBsuid?: string;
   name?: string;
   status: 'pending_name' | 'pending_approval' | 'approved' | 'rejected';
   clubRole: 'coach_infantil' | 'coach_juvenil' | 'admin';
@@ -40,6 +41,7 @@ export interface KapsoWebhookPayload {
   message?: {
     id: string;
     from: string;
+    from_user_id?: string;
     type: 'text' | 'image' | 'audio' | 'document' | 'video';
     text?: { body: string };
     audio?: { id: string; mime_type?: string };

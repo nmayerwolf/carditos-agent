@@ -3,10 +3,12 @@
 ## Tables
 
 ### `users`
+
 ```sql
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   phone_number VARCHAR(20) UNIQUE NOT NULL,
+  whatsapp_bsuid TEXT UNIQUE, -- Business-Scoped User ID, ver docs/whatsapp-bsuid-migration.md
   name VARCHAR(100),
   club_role VARCHAR(50), -- 'coach_infantil', 'coach_juvenil', 'admin'
   created_at TIMESTAMP DEFAULT now(),
@@ -17,6 +19,7 @@ CREATE INDEX idx_users_phone ON users(phone_number);
 ```
 
 ### `conversations`
+
 ```sql
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,6 +35,7 @@ CREATE INDEX idx_conversations_whatsapp ON conversations(whatsapp_conversation_i
 ```
 
 ### `messages`
+
 ```sql
 CREATE TABLE messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -51,6 +55,7 @@ CREATE INDEX idx_messages_user ON messages(user_id);
 ```
 
 ### `corpus_documents`
+
 ```sql
 CREATE TABLE corpus_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,6 +72,7 @@ CREATE INDEX idx_corpus_category ON corpus_documents(category);
 ```
 
 ### `corpus_embeddings` (pgvector)
+
 ```sql
 CREATE TABLE corpus_embeddings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,6 +90,7 @@ CREATE INDEX idx_embeddings_vector ON corpus_embeddings USING ivfflat (embedding
 ## Constraints & Indices
 
 - `users.phone_number`: UNIQUE (one coach per number)
+- `users.whatsapp_bsuid`: UNIQUE, nullable. Identificador estable de contacto (sobrevive a que el usuario adopte un username de WhatsApp, lo que hace desaparecer `phone_number` de los webhooks). Lookup de usuario: BSUID primero, teléfono como fallback. Ver `docs/whatsapp-bsuid-migration.md`.
 - `messages`: TTL policy for privacy (keep 30 days, then archive)
 - `corpus_embeddings`: vector index for similarity search (<100ms)
 
@@ -105,4 +112,3 @@ VALUES
 - `club_role`: 'coach_infantil', 'coach_juvenil', 'admin'
 - `category`: 'reglamento', 'ejercicios', 'manejo_grupal', 'modalidades'
 - `media_type`: 'image', 'audio', 'document', 'video'
-

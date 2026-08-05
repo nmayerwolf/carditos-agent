@@ -128,6 +128,7 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
     if (!msg || msg.kapso?.direction !== 'inbound') return;
 
     const phoneNumber = msg.from;
+    const bsuid = msg.from_user_id;
 
     kapsoClient.markAsRead(msg.id).catch(() => {});
 
@@ -138,6 +139,7 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
       await kapsoClient.sendMessage(
         phoneNumber,
         'Recibí tu audio, pero todavía no puedo procesarlos. Mandame un mensaje de texto y te ayudo.',
+        bsuid,
       );
       return;
     }
@@ -164,7 +166,7 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
 
     processingLocks.add(phoneNumber);
     try {
-      const user = await getOrCreateUser(phoneNumber);
+      const user = await getOrCreateUser(phoneNumber, bsuid);
       const conversation = await getOrCreateConversation(user.id, body.conversation?.id);
 
       await storeMessage(conversation.id, user.id, 'inbound', content);
@@ -184,19 +186,19 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
       if (user.status === 'pending_name') {
         if (!hasOutbound) {
           await storeMessage(conversation.id, user.id, 'outbound', ASK_NAME_MSG);
-          await kapsoClient.sendMessage(phoneNumber, ASK_NAME_MSG);
+          await kapsoClient.sendMessage(phoneNumber, ASK_NAME_MSG, bsuid);
         } else {
           const name = content.trim().slice(0, 100);
           await updateUser(user.id, { name, status: 'pending_approval' });
           await storeMessage(conversation.id, user.id, 'outbound', PENDING_MSG);
-          await kapsoClient.sendMessage(phoneNumber, PENDING_MSG);
+          await kapsoClient.sendMessage(phoneNumber, PENDING_MSG, bsuid);
           await notifySuperadmins(superadminPhones, name, phoneNumber);
         }
         return;
       }
 
       if (user.status === 'pending_approval') {
-        await kapsoClient.sendMessage(phoneNumber, STILL_PENDING_MSG);
+        await kapsoClient.sendMessage(phoneNumber, STILL_PENDING_MSG, bsuid);
         return;
       }
 
@@ -214,7 +216,7 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
 
         if ((priorConvCount ?? 0) === 0) {
           await storeMessage(conversation.id, user.id, 'outbound', WELCOME_MSG);
-          await kapsoClient.sendMessage(phoneNumber, WELCOME_MSG);
+          await kapsoClient.sendMessage(phoneNumber, WELCOME_MSG, bsuid);
           return;
         }
         // Usuario que vuelve — procesar su consulta directamente
@@ -226,18 +228,18 @@ export async function whatsappWebhookHandler(req: Request, res: Response) {
         userId: user.id,
         recentMessages: conversationHistory,
         sendIntermediateMessage: async (text: string) => {
-          await kapsoClient.sendMessage(phoneNumber, text);
+          await kapsoClient.sendMessage(phoneNumber, text, bsuid);
         },
         sendVideo: async (url: string, caption: string) => {
-          await kapsoClient.sendVideo(phoneNumber, url, caption);
+          await kapsoClient.sendVideo(phoneNumber, url, caption, bsuid);
         },
       });
 
-      await kapsoClient.sendMessage(phoneNumber, response);
+      await kapsoClient.sendMessage(phoneNumber, response, bsuid);
     } catch (msgErr) {
       logger.error(msgErr, 'Error processing message');
       try {
-        await kapsoClient.sendMessage(phoneNumber, FALLBACK_ERROR_MSG);
+        await kapsoClient.sendMessage(phoneNumber, FALLBACK_ERROR_MSG, bsuid);
       } catch {
         // noop
       }

@@ -42,15 +42,34 @@ export async function getPendingUsers(): Promise<User[]> {
   return (data || []) as User[];
 }
 
-export async function getOrCreateUser(phoneNumber: string): Promise<User> {
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('*')
-    .eq('phone_number', phoneNumber)
-    .single();
+export async function getOrCreateUser(phoneNumber: string, bsuid?: string): Promise<User> {
+  let existingUser: Record<string, unknown> | null = null;
+
+  if (bsuid) {
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('whatsapp_bsuid', bsuid)
+      .maybeSingle();
+    existingUser = data;
+  }
+
+  if (!existingUser) {
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone_number', phoneNumber)
+      .maybeSingle();
+    existingUser = data;
+  }
 
   if (existingUser) {
-    return existingUser as User;
+    // Self-healing: mantiene whatsapp_bsuid al día con el tráfico normal, sin backfill.
+    if (bsuid && existingUser.whatsapp_bsuid !== bsuid) {
+      await supabase.from('users').update({ whatsapp_bsuid: bsuid }).eq('id', existingUser.id);
+      existingUser.whatsapp_bsuid = bsuid;
+    }
+    return existingUser as unknown as User;
   }
 
   const { data: newUser, error } = await supabase
@@ -58,6 +77,7 @@ export async function getOrCreateUser(phoneNumber: string): Promise<User> {
     .insert([
       {
         phone_number: phoneNumber,
+        whatsapp_bsuid: bsuid,
         club_role: 'coach_infantil',
       },
     ])

@@ -38,12 +38,18 @@ class KapsoClient {
     }
   }
 
-  async sendVideo(toPhoneNumber: string, url: string, caption?: string): Promise<void> {
+  async sendVideo(
+    toPhoneNumber: string,
+    url: string,
+    caption?: string,
+    bsuid?: string,
+  ): Promise<void> {
     try {
       await this.client.post(`/${KAPSO_PHONE_NUMBER_ID}/messages`, {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: toPhoneNumber,
+        ...(bsuid ? { recipient: bsuid } : {}),
         type: 'video',
         video: { link: url, ...(caption ? { caption } : {}) },
       });
@@ -75,7 +81,7 @@ class KapsoClient {
     return chunks;
   }
 
-  async sendMessage(toPhoneNumber: string, message: string): Promise<string> {
+  async sendMessage(toPhoneNumber: string, message: string, bsuid?: string): Promise<string> {
     try {
       const chunks = this.splitMessage(message);
       let lastMessageId = '';
@@ -85,6 +91,7 @@ class KapsoClient {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
           to: toPhoneNumber,
+          ...(bsuid ? { recipient: bsuid } : {}),
           type: 'text',
           text: { body: chunk },
         });
