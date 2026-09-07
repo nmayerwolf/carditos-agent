@@ -182,17 +182,28 @@ const PANEL_HTML = `<!DOCTYPE html>
     if (name === 'mensajes') loadMessages();
   }
 
+  const AR_TZ = 'America/Argentina/Buenos_Aires';
+
+  // Los timestamps de la DB son UTC pero llegan sin sufijo de zona ('...T21:34:45').
+  // El browser los parsearía como hora local, corriendo todo +3h. Los normalizamos a UTC.
+  function parseDate(d) {
+    if (typeof d === 'string' && !/(?:Z|[+-]\\d\\d:?\\d\\d)$/.test(d)) {
+      d = d.replace(' ', 'T') + 'Z';
+    }
+    return new Date(d);
+  }
+
   function fmt(d) {
-    return new Date(d).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    return parseDate(d).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', timeZone: AR_TZ });
   }
 
   function fmtTime(d) {
-    return new Date(d).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    return parseDate(d).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', timeZone: AR_TZ });
   }
 
   function fmtPreview(d) {
-    const now = new Date(), dt = new Date(d);
-    return now.toDateString() === dt.toDateString()
+    const arDay = x => parseDate(x).toLocaleDateString('en-CA', { timeZone: AR_TZ });
+    return arDay(new Date().toISOString()) === arDay(d)
       ? fmtTime(d)
       : fmt(d);
   }
@@ -303,7 +314,7 @@ const PANEL_HTML = `<!DOCTYPE html>
       map[m.user_id].messages.push(m);
       if (m.created_at > map[m.user_id].lastAt) map[m.user_id].lastAt = m.created_at;
     }
-    return Object.values(map).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+    return Object.values(map).sort((a, b) => parseDate(b.lastAt) - parseDate(a.lastAt));
   }
 
   function renderConvList(groups, selectedId) {
