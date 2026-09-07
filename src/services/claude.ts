@@ -24,13 +24,27 @@ const VIDEO_MARKER_RE =
 const fixtureToolDefinition: Anthropic.Tool = {
   name: 'generate_fixture',
   description:
-    'Genera el fixture de partidos para una jornada. Llamá esta herramienta cuando tengas toda la información: categoría, canchas, equipos expandidos con su nivel y máximo de partidos por equipo.',
+    'Genera el fixture de partidos para una jornada. Llamá esta herramienta cuando tengas toda la información: categoría, fecha, sede, clubes, canchas, equipos expandidos con su nivel y máximo de partidos por equipo.',
   input_schema: {
     type: 'object' as const,
     properties: {
       category: {
         type: 'string',
         description: 'Categoría de los equipos (M6 a M19)',
+      },
+      date: {
+        type: 'string',
+        description: 'Fecha de la jornada, tal como la dio el entrenador (ej: "Sábado 12/9/2026")',
+      },
+      venue: {
+        type: 'string',
+        description: 'Sede donde se juega la jornada (ej: "Club San Andrés")',
+      },
+      clubs: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Nombres de los clubes participantes, sin numerar (ej: ["San Andrés", "San Carlos", "GEBA"])',
       },
       courts: {
         type: 'array',
@@ -62,7 +76,7 @@ const fixtureToolDefinition: Anthropic.Tool = {
         description: 'Si es true, competitivos pueden jugar contra formativos',
       },
     },
-    required: ['category', 'courts', 'teams', 'max_matches_per_team'],
+    required: ['category', 'date', 'venue', 'clubs', 'courts', 'teams', 'max_matches_per_team'],
   },
 };
 
