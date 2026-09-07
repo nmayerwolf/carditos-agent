@@ -5,14 +5,31 @@ export interface FixtureTeam {
 
 export interface FixtureInput {
   category: string;
+  date: string;
+  venue: string;
+  clubs: string[];
   courts: string[];
   teams: FixtureTeam[];
   max_matches_per_team: number;
   mixed?: boolean;
 }
 
+function formatClubList(clubs: string[]): string {
+  if (clubs.length <= 1) return clubs.join('');
+  return `${clubs.slice(0, -1).join(', ')} y ${clubs[clubs.length - 1]}`;
+}
+
 export function buildFixtureUserMessage(input: FixtureInput): string {
-  const { category, courts, teams, max_matches_per_team, mixed = false } = input;
+  const {
+    category,
+    date,
+    venue,
+    clubs,
+    courts,
+    teams,
+    max_matches_per_team,
+    mixed = false,
+  } = input;
   const modalidad = mixed ? 'Mixto' : 'Competitivo/Formativo';
 
   const teamLines = teams.map((t) => `- ${t.name}${mixed ? '' : ` (${t.type})`}`).join('\n');
@@ -20,6 +37,9 @@ export function buildFixtureUserMessage(input: FixtureInput): string {
   return `Generá el fixture para esta jornada.
 
 Categoría: ${category}
+Fecha: ${date}
+Sede: ${venue}
+Clubes: ${formatClubList(clubs)}
 Canchas disponibles: ${courts.length} (${courts.map((c) => `Cancha ${c}`).join(', ')})
 Modalidad: ${modalidad}
 Máximo de partidos por equipo: ${max_matches_per_team}
@@ -53,6 +73,9 @@ LIBRES: Si en una ronda queda un número impar de equipos disponibles en un nive
 FORMATO DE SALIDA — template exacto, sin texto extra:
 
 🏉 Fixture [Categoría]
+📅 [Fecha]
+📍 [Sede]
+Clubes: [Clubes]
 
 *── Ronda 1 ──*
 _Competitivo_
@@ -71,6 +94,7 @@ C3 · Equipo F *vs* Equipo G
 
 REGLAS DE FORMATO:
 - El output empieza directo con el emoji 🏉. Sin introducción ni texto previo.
+- Encabezado: después del título van tres líneas — 📅 con la fecha tal cual te la pasaron, 📍 con la sede, y "Clubes: " con la lista de clubes. Después una línea en blanco y arranca la Ronda 1.
 - Títulos de ronda: *── Ronda N ──* (negrita WhatsApp, con guiones decorativos).
 - Niveles: _Competitivo_ y _Formativo_ (cursiva WhatsApp). Solo si hay ambos niveles.
 - Partidos: CX · Equipo A *vs* Equipo B — el "vs" va en negrita.
