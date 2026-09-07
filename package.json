@@ -20,7 +20,7 @@
     "db:migrate": "tsx db/migrate.ts",
     "ingest": "tsx scripts/ingest-knowledge.ts",
     "backfill:bsuid": "tsx scripts/backfill-bsuid.ts",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "repository": {
     "type": "git",
