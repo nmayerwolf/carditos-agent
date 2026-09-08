@@ -13,6 +13,10 @@ const __dirname = path.dirname(__filename);
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  // El SDK reintenta 2 veces por defecto. Un request grande que timeoutea del
+  // lado del cliente pero completa en el server se cobra cada intento; con 1
+  // reintento acotamos ese multiplicador.
+  maxRetries: 1,
 });
 
 const systemPromptPath = path.join(__dirname, '../prompts/system-carditos.md');
@@ -124,10 +128,10 @@ async function generateFixtureWithClaude(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 16000,
+    max_tokens: 9000,
     thinking: {
       type: 'enabled',
-      budget_tokens: 10000,
+      budget_tokens: 5000,
     },
     system: [
       {
