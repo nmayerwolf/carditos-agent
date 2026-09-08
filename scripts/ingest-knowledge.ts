@@ -6,6 +6,7 @@ import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import { supabase } from '../src/db/client.js';
 import { logger } from '../src/lib/logger.js';
+import { chunkText } from '../src/lib/chunk.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,14 +63,66 @@ async function extractText(filePath: string): Promise<string> {
   throw new Error(`Formato no soportado: ${ext}`);
 }
 
-async function alreadyIngested(title: string): Promise<boolean> {
-  const { data } = await supabase
+async function upsertDocument(
+  title: string,
+  source: string,
+  category: Category,
+  content: string,
+): Promise<string> {
+  const { data: existing } = await supabase
     .from('corpus_documents')
     .select('id')
     .eq('title', title)
     .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('corpus_documents')
+      .update({ source, category, content, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    if (error) throw error;
+    return existing.id as string;
+  }
+
+  const { data, error } = await supabase
+    .from('corpus_documents')
+    .insert([{ title, source, content, category }])
+    .select('id')
     .single();
-  return !!data;
+  if (error) throw error;
+  return data.id as string;
+}
+
+async function replaceChunks(
+  documentId: string,
+  title: string,
+  source: string,
+  category: Category,
+  content: string,
+): Promise<number> {
+  const { error: delError } = await supabase
+    .from('corpus_chunks')
+    .delete()
+    .eq('document_id', documentId);
+  if (delError) throw delError;
+
+  const parts = chunkText(content);
+  const rows = parts.map((chunk, chunk_index) => ({
+    document_id: documentId,
+    title,
+    source,
+    category,
+    chunk_index,
+    content: chunk,
+  }));
+
+  for (let i = 0; i < rows.length; i += 100) {
+    const { error } = await supabase.from('corpus_chunks').insert(rows.slice(i, i + 100));
+    if (error) throw error;
+  }
+
+  return rows.length;
 }
 
 async function ingestDocument(
@@ -78,20 +131,12 @@ async function ingestDocument(
   category: Category,
   content: string,
 ): Promise<void> {
-  if (await alreadyIngested(title)) {
-    logger.info({ title }, 'Skipping — ya ingresado');
-    return;
-  }
-
   logger.info({ title, category }, 'Ingresando documento');
 
-  const { error } = await supabase
-    .from('corpus_documents')
-    .insert([{ title, source, content, category }]);
+  const documentId = await upsertDocument(title, source, category, content);
+  const chunkCount = await replaceChunks(documentId, title, source, category, content);
 
-  if (error) throw error;
-
-  logger.info({ title }, '✓ Documento ingresado');
+  logger.info({ title, chunks: chunkCount }, '✓ Documento ingresado');
 }
 
 async function main() {
