@@ -34,6 +34,7 @@ export async function processUserQuery(
     const {
       text: response,
       tokensUsed,
+      costUsd,
       video,
     } = await chat(query, {
       conversationHistory: context.recentMessages,
@@ -43,7 +44,7 @@ export async function processUserQuery(
 
     const latencyMs = Date.now() - startTime;
 
-    // Store outbound message with token count
+    // Store outbound message with token count + costo real (USD)
     await storeMessage(
       context.conversationId,
       context.userId,
@@ -51,6 +52,7 @@ export async function processUserQuery(
       response,
       undefined,
       tokensUsed,
+      costUsd,
     );
 
     if (video && context.sendVideo) {
