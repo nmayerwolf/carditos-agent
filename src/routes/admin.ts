@@ -4,6 +4,7 @@ import { updateUser, getOrCreateConversation, storeMessage } from '../services/c
 import { kapsoClient } from '../services/whatsapp.js';
 import { logger } from '../lib/logger.js';
 import { WELCOME_MSG } from '../lib/messages.js';
+import { LEGACY_BLENDED_PER_MTOK } from '../lib/cost.js';
 
 function checkToken(req: Request, res: Response): boolean {
   const adminToken = process.env.ADMIN_TOKEN;
@@ -166,10 +167,8 @@ const PANEL_HTML = `<!DOCTYPE html>
     rejected: 'Rechazado'
   };
 
-  function fmtCost(tokens) {
-    if (!tokens) return '—';
-    // claude-sonnet-4-6: $3/MTok input + $15/MTok output — blended ~$4.80/MTok (85% input / 15% output)
-    const usd = (tokens / 1_000_000) * 4.80;
+  function fmtUsd(usd) {
+    if (!usd) return '—';
     if (usd < 0.01) return '< $0.01';
     return '$' + usd.toFixed(2);
   }
@@ -279,7 +278,7 @@ const PANEL_HTML = `<!DOCTYPE html>
       '<td>' + u.phone_number + '</td>' +
       '<td><span class="badge ' + u.status + '">' + STATUS_LABELS[u.status] + '</span></td>' +
       '<td>' + fmt(u.created_at) + '</td>' +
-      '<td style="font-variant-numeric:tabular-nums">' + fmtCost(u.total_tokens) + '</td>' +
+      '<td style="font-variant-numeric:tabular-nums">' + fmtUsd(u.total_cost_usd) + '</td>' +
       '<td><div class="actions">' + qa +
         '<button class="btn btn-edit"   onclick="openEdit(\\'' + u.id + '\\')">Editar</button>' +
         '<button class="btn btn-delete" onclick="deleteUser(\\'' + u.id + '\\')">Eliminar</button>' +
@@ -386,9 +385,9 @@ export async function adminListUsersHandler(req: Request, res: Response) {
     supabase.from('users').select('*').order('created_at', { ascending: false }),
     supabase
       .from('messages')
-      .select('user_id, tokens_used')
+      .select('user_id, tokens_used, cost_usd')
       .eq('direction', 'outbound')
-      .not('tokens_used', 'is', null),
+      .or('tokens_used.not.is.null,cost_usd.not.is.null'),
   ]);
 
   if (usersResult.error) {
@@ -396,15 +395,24 @@ export async function adminListUsersHandler(req: Request, res: Response) {
     return res.status(500).json({ error: 'DB error' });
   }
 
+  // Costo real por usuario: se usa cost_usd (calculado en el backend con los 4
+  // contadores de usage). Filas viejas sin cost_usd se estiman con la tarifa
+  // mixta histórica sobre tokens_used.
   const tokensByUser: Record<string, number> = {};
+  const costByUser: Record<string, number> = {};
   for (const m of tokensResult.data || []) {
     const uid = m.user_id as string;
-    tokensByUser[uid] = (tokensByUser[uid] || 0) + ((m.tokens_used as number) || 0);
+    const tokens = (m.tokens_used as number) || 0;
+    tokensByUser[uid] = (tokensByUser[uid] || 0) + tokens;
+    const cost =
+      m.cost_usd != null ? Number(m.cost_usd) : (tokens * LEGACY_BLENDED_PER_MTOK) / 1_000_000;
+    costByUser[uid] = (costByUser[uid] || 0) + cost;
   }
 
   const users = (usersResult.data || []).map((u) => ({
     ...u,
     total_tokens: tokensByUser[u.id as string] || 0,
+    total_cost_usd: costByUser[u.id as string] || 0,
   }));
 
   res.json(users);

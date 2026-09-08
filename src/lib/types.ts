@@ -33,6 +33,7 @@ export interface Message {
   mediaUrl?: string;
   mediaType?: 'image' | 'audio' | 'document' | 'video';
   tokensUsed?: number;
+  costUsd?: number;
   latencyMs?: number;
   createdAt: Date;
 }

@@ -3,6 +3,7 @@ import { logger } from '../lib/logger.js';
 import { retrieveContext, formatContext } from './retrieval.js';
 import { buildFixtureUserMessage, FIXTURE_SPEC } from '../lib/fixture.js';
 import { getVideosCatalog, formatVideosCatalog } from './videos.js';
+import { computeCost } from '../lib/cost.js';
 import type { FixtureInput } from '../lib/fixture.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -123,7 +124,7 @@ export interface VideoRef {
 
 async function generateFixtureWithClaude(
   input: FixtureInput,
-): Promise<{ text: string; tokensUsed: number }> {
+): Promise<{ text: string; costUsd: number; tokensUsed: number }> {
   const userMessage = buildFixtureUserMessage(input);
 
   const response = await client.messages.create({
@@ -144,14 +145,18 @@ async function generateFixtureWithClaude(
   });
 
   const text = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
-  const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
-  return { text: text?.text ?? 'No se pudo generar el fixture.', tokensUsed };
+  const { costUsd, billableTokens } = computeCost(response.usage);
+  return {
+    text: text?.text ?? 'No se pudo generar el fixture.',
+    costUsd,
+    tokensUsed: billableTokens,
+  };
 }
 
 export async function chat(
   query: string,
   options: ChatOptions = {},
-): Promise<{ text: string; tokensUsed: number; video?: VideoRef }> {
+): Promise<{ text: string; tokensUsed: number; costUsd: number; video?: VideoRef }> {
   try {
     const { conversationHistory = [], maxContextMessages = 30, onIntermediateMessage } = options;
 
@@ -217,25 +222,30 @@ export async function chat(
 
         logger.info({ category: input.category, teams: input.teams.length }, 'Generando fixture');
 
-        const { text: fixtureText, tokensUsed: fixtureTokens } = await withDelayedMessage(
+        const {
+          text: fixtureText,
+          tokensUsed: fixtureTokens,
+          costUsd: fixtureCost,
+        } = await withDelayedMessage(
           () => generateFixtureWithClaude(input),
           onIntermediateMessage,
           'Armando el fixture, dame unos segundos... 🏉',
         );
 
+        const orchestrator = computeCost(response.usage);
         const latency = Date.now() - startTime;
-        const tokensUsed =
-          response.usage.input_tokens + response.usage.output_tokens + fixtureTokens;
-        logger.info({ latencyMs: latency, tokensUsed }, 'Fixture generado');
+        const tokensUsed = orchestrator.billableTokens + fixtureTokens;
+        const costUsd = orchestrator.costUsd + fixtureCost;
+        logger.info({ latencyMs: latency, tokensUsed, costUsd }, 'Fixture generado');
 
-        return { text: fixtureText, tokensUsed };
+        return { text: fixtureText, tokensUsed, costUsd };
       }
     }
 
     const latency = Date.now() - startTime;
     const textContent = response.content.find((c): c is Anthropic.TextBlock => c.type === 'text');
     const rawText = textContent?.text ?? '';
-    const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+    const { costUsd, billableTokens: tokensUsed } = computeCost(response.usage);
 
     // Parse optional [VIDEO:uuid] marker
     const videoMatch = rawText.match(VIDEO_MARKER_RE);
@@ -250,6 +260,7 @@ export async function chat(
         cacheCreationTokens: response.usage.cache_creation_input_tokens || 0,
         cacheReadTokens: response.usage.cache_read_input_tokens || 0,
         outputTokens: response.usage.output_tokens,
+        costUsd,
         videoId: videoId ?? undefined,
       },
       'Claude response',
@@ -258,6 +269,7 @@ export async function chat(
     return {
       text: cleanText,
       tokensUsed,
+      costUsd,
       ...(videoRef ? { video: { url: videoRef.url, title: videoRef.title } } : {}),
     };
   } catch (err) {
